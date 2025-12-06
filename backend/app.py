@@ -2,6 +2,7 @@ from fastapi import FastAPI, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+from fastapi import HTTPException
 
 from .redirect_state import RedirectState
 
@@ -111,6 +112,37 @@ def api_delete_preset(name: str):
 def api_rename_preset(old: str, new: str):
     renamed = state.rename_preset(old, new)
     return {"status": "ok", "renamed": renamed}
+    
+# ----------------- Apply Preset with URL ----------------
+
+@app.get("/preset/{preset_name}")
+async def activate_preset_by_url(preset_name: str):
+    # normalize for matching
+    normalized = preset_name.replace("-", " ").lower()
+
+    # find matching preset
+    match = None
+    for name, data in state.presets.items():
+        if name.lower() == normalized:
+            match = (name, data)
+            break
+
+    if not match:
+        raise HTTPException(status_code=404, detail="Preset not found")
+
+    preset_name, preset_data = match
+
+    # apply preset
+    state.set_current_url(preset_data["url"])
+    state.clear_timer()  # cancel any timed override
+    state.save()
+
+    # return confirmation or redirect to UI
+    return {
+        "status": "ok",
+        "active_preset": preset_name,
+        "active_url": preset_data["url"],
+    }
 
 
 # ----------------- DEV ENTRYPOINT -----------------

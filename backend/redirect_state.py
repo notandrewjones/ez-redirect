@@ -123,6 +123,17 @@ class RedirectState:
                 self.presets[name] = url
 
             self._save_json(self.presets_path, self.presets)
+            
+    def clear_timer(self):
+        self.timer = None
+
+    def save(self):
+        self._save_json(self.config_path, {
+            "current_url": self.current_url,
+            "default_url": self.default_url
+        })
+        self._save_json(self.presets_path, self.presets)
+    
 
     # ----------------- API info -----------------
 
