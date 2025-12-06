@@ -2,7 +2,7 @@
 
 set -e
 
-REPO_URL="https://github.com/YOUR_GITHUB_USERNAME/ez-redirect.git"
+REPO_URL="https://github.com/notandrewjones/ez-redirect.git"
 INSTALL_DIR="/opt/ez-redirect"
 SERVICE_FILE="/etc/systemd/system/ez-redirect.service"
 

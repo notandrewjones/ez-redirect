@@ -16,7 +16,7 @@ INSTALL_DIR="/usr/local/ez-redirect"
 
 # Clone or update repo
 if [ ! -d "$INSTALL_DIR" ]; then
-    sudo git clone https://github.com/YOUR_GITHUB_USERNAME/ez-redirect.git "$INSTALL_DIR"
+    sudo git clone https://github.com/notandrewjones/ez-redirect.git "$INSTALL_DIR"
 else
     sudo git -C "$INSTALL_DIR" pull
 fi

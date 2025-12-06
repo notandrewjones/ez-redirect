@@ -23,7 +23,7 @@ if (-not (Test-Path $nssmPath)) {
 $installDir = "C:\ez-redirect"
 
 if (-not (Test-Path $installDir)) {
-    git clone https://github.com/YOUR_GITHUB_USERNAME/ez-redirect.git $installDir
+    git clone https://github.com/notandrewjones/ez-redirect.git $installDir
 } else {
     cd $installDir
     git pull
