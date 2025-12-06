@@ -8,7 +8,7 @@ from .redirect_state import RedirectState
 
 app = FastAPI(
     title="Local Redirect Controller",
-    debug=True
+    debug=False
 )
 
 # Allow all origins (safe for local LAN app)
