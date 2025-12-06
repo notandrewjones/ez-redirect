@@ -6,7 +6,11 @@ from fastapi import HTTPException
 
 from .redirect_state import RedirectState
 
-app = FastAPI(title="Local Redirect Controller")
+app = FastAPI(
+    title="Local Redirect Controller",
+    debug=True
+)
+
 
 # Allow browser calls from the same origin or others if you ever host UI separately
 app.add_middleware(

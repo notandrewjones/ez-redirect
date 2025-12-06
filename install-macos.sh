@@ -4,7 +4,7 @@ set -e
 
 echo "Installing ez-redirect (macOS)..."
 
-# Install Homebrew Python + git
+# --- Requirements ---
 if ! command -v brew >/dev/null 2>&1; then
     echo "Homebrew is required. Install from https://brew.sh"
     exit 1
@@ -14,24 +14,39 @@ brew install python git
 
 INSTALL_DIR="/usr/local/ez-redirect"
 VENV_DIR="$INSTALL_DIR/venv"
+PLIST=~/Library/LaunchAgents/com.ezredirect.app.plist
 
-# Clone or update repo
+# --- Clone or Update Repo ---
+
 if [ ! -d "$INSTALL_DIR" ]; then
+    echo "Cloning repository..."
     sudo git clone https://github.com/notandrewjones/ez-redirect.git "$INSTALL_DIR"
 else
+    echo "Updating repository..."
     sudo git -C "$INSTALL_DIR" pull
 fi
 
-# Create venv (avoids PEP 668 issues)
-echo "Creating Python virtual environment..."
-sudo python3 -m venv "$VENV_DIR"
+# --- Fix Ownership Automatically ---
+echo "Fixing permissions..."
+sudo chown -R $USER:staff "$INSTALL_DIR"
 
-# Install dependencies inside venv
-echo "Installing Python dependencies in venv..."
-sudo "$VENV_DIR/bin/pip" install fastapi uvicorn[standard]
+# Mark directory as safe for Git
+git config --global --add safe.directory "$INSTALL_DIR"
 
-# Create launchd service
-PLIST=~/Library/LaunchAgents/com.ezredirect.app.plist
+# --- Create Virtual Environment ---
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo "Creating Python virtual environment..."
+    python3 -m venv "$VENV_DIR"
+fi
+
+echo "Installing Python dependencies..."
+"$VENV_DIR/bin/pip" install --upgrade pip
+"$VENV_DIR/bin/pip" install fastapi uvicorn[standard]
+
+# --- Create launchd Service ---
+
+echo "Creating launchd plist..."
 
 cat <<EOF > $PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -64,9 +79,31 @@ cat <<EOF > $PLIST
 </plist>
 EOF
 
-echo "Loading launchd service..."
+echo "Reloading launchd service..."
 launchctl unload $PLIST 2>/dev/null || true
 launchctl load $PLIST
 
-echo "ez-redirect installed and running at:"
-echo "http://localhost:8000"
+# --- Install ez-update Command ---
+echo "Installing ez-update command..."
+
+UPDATE_SCRIPT="/usr/local/bin/ez-update"
+
+sudo tee $UPDATE_SCRIPT > /dev/null <<EOF
+#!/bin/bash
+echo "Updating ez-redirect..."
+cd $INSTALL_DIR
+git pull
+launchctl unload $PLIST
+launchctl load $PLIST
+echo "Update complete."
+EOF
+
+sudo chmod +x $UPDATE_SCRIPT
+
+echo ""
+echo "🎉 ez-redirect installation complete!"
+echo "Service is running at: http://localhost:8000"
+echo ""
+echo "To update anytime, run:"
+echo "    ez-update"
+echo ""
