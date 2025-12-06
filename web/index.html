@@ -10,7 +10,7 @@
 <div class="container">
 
     <h1>EZ Redirect</h1>
-    <p class="subtitle">Instant propogation redirects.</p>
+    <p class="subtitle">Instant propagation redirects.</p>
 
     <!-- CURRENT REDIRECT -->
     <section class="card">
@@ -119,7 +119,7 @@
     }
 
     /* ============================
-       PRESETS
+       PRESET LIST + UI
     ============================ */
 
     async function loadPresets() {
@@ -128,7 +128,9 @@
 
         container.innerHTML = "";
 
-        Object.entries(presets).forEach(([name, url]) => {
+        Object.entries(presets).forEach(([name, data]) => {
+            const url = data.url;
+
             const row = document.createElement("div");
             row.className = "preset-row";
 
@@ -138,7 +140,7 @@
                 <img src="https://www.google.com/s2/favicons?domain=${url}" class="favicon">
                 <span>${name}</span>
             `;
-            btn.onclick = () => applyPreset(url);
+            btn.onclick = () => applyPreset(name);
 
             const menu = document.createElement("button");
             menu.className = "icon-btn small";
@@ -151,9 +153,9 @@
         });
     }
 
-    async function applyPreset(url) {
+    async function applyPreset(name) {
         clearExistingTimer();
-        await fetch(`/api/set?url=${encodeURIComponent(url)}`, { method: "POST" });
+        await fetch(`/preset/${encodeURIComponent(name)}`);
         loadCurrent();
     }
 
@@ -164,7 +166,13 @@
     async function applyCurrentUrl() {
         clearExistingTimer();
         const url = document.getElementById('current-url-input').value;
-        await fetch(`/api/set?url=${encodeURIComponent(url)}`, { method: "POST" });
+
+        await fetch("/api/set", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
+
         loadCurrent();
     }
 
@@ -173,8 +181,10 @@
         const url = document.getElementById("temp-url").value;
         const seconds = document.getElementById("temp-seconds").value;
 
-        await fetch(`/api/temp?url=${encodeURIComponent(url)}&seconds=${seconds}`, {
-            method: "POST"
+        await fetch("/api/temp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, seconds })
         });
 
         loadCurrent();
@@ -215,17 +225,23 @@
     }
 
     async function savePreset() {
-        const name = document.getElementById("preset-name").value;
-        const url = document.getElementById("preset-url").value;
+        const name = document.getElementById("preset-name").value.trim();
+        const url = document.getElementById("preset-url").value.trim();
+
+        if (!name || !url) return;
 
         if (editingPreset && editingPreset !== name) {
-            await fetch(`/api/presets/rename?old=${encodeURIComponent(editingPreset)}&new=${encodeURIComponent(name)}`, {
-                method: "POST"
+            await fetch("/api/presets/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ old: editingPreset, new: name })
             });
         }
 
-        await fetch(`/api/presets/add?name=${encodeURIComponent(name)}&url=${encodeURIComponent(url)}`, {
-            method: "POST"
+        await fetch("/api/presets/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, url })
         });
 
         closeModal();
@@ -235,8 +251,10 @@
     async function deletePreset() {
         if (!editingPreset) return;
 
-        await fetch(`/api/presets/delete?name=${encodeURIComponent(editingPreset)}`, {
-            method: "POST"
+        await fetch("/api/presets/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: editingPreset })
         });
 
         closeModal();
@@ -246,16 +264,20 @@
     async function makeDefault() {
         if (!editingPreset) return;
 
-        const url = document.getElementById("preset-url").value;
+        const url = document.getElementById("preset-url").value.trim();
 
-        await fetch(`/api/set-default?url=${encodeURIComponent(url)}`, {
-            method: "POST"
+        await fetch("/api/set-default", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
         });
 
         closeModal();
         loadPresets();
+        loadCurrent();
     }
 
+    // INITIAL LOAD
     loadCurrent();
     loadPresets();
 </script>

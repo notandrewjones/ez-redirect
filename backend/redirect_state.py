@@ -5,17 +5,16 @@ from pathlib import Path
 from collections import OrderedDict
 
 
-
 class RedirectState:
     def __init__(self):
         self.lock = Lock()
 
-        # Paths to JSON files
+        # Base paths
         base_dir = Path(__file__).resolve().parent.parent
         self.config_path = base_dir / "backend" / "config.json"
         self.presets_path = base_dir / "backend" / "presets.json"
 
-        # Load config (with defaults)
+        # Load config with defaults
         defaults = {
             "default_url": "https://example.com",
             "current_url": "https://example.com",
@@ -23,13 +22,27 @@ class RedirectState:
         }
 
         self.data = self._load_json(self.config_path, defaults)
+
+        # Ensure all keys exist
         for key, value in defaults.items():
             self.data.setdefault(key, value)
 
-        # Load presets as an OrderedDict to preserve order
+        # Load presets as ordered dict
         raw_presets = self._load_json(self.presets_path, {})
-        self.presets = OrderedDict(raw_presets)
-    
+        self.presets = OrderedDict()
+
+        # ENFORCE CORRECT STRUCTURE:
+        # Convert:  "Giving": "https://..." → "Giving": {"url": "..."}
+        for name, value in raw_presets.items():
+            if isinstance(value, str):
+                self.presets[name] = {"url": value}
+            else:
+                self.presets[name] = value
+
+        # Save corrected preset format if needed
+        self._save_json(self.presets_path, self.presets)
+
+    # ----------------- JSON helpers -----------------
 
     def _load_json(self, path: Path, default):
         try:
@@ -43,47 +56,55 @@ class RedirectState:
         with path.open("w") as f:
             json.dump(data, f, indent=4)
 
-    # ----------------- core redirect logic -----------------
+    # ----------------- redirect logic -----------------
 
     def get_current_url(self) -> str:
         with self.lock:
-            # If temporary redirect expired, revert to default
-            expires_at = self.data.get("expires_at")
-            if expires_at and time.time() > expires_at:
+            expires = self.data.get("expires_at")
+
+            # Expired temporary redirect?
+            if expires and time.time() > expires:
                 self.data["current_url"] = self.data["default_url"]
                 self.data["expires_at"] = None
                 self._save_json(self.config_path, self.data)
 
             return self.data["current_url"]
 
-    def set_url(self, url: str):
+    def set_current_url(self, url: str):
         with self.lock:
             self.data["current_url"] = url
             self.data["expires_at"] = None
             self._save_json(self.config_path, self.data)
 
-    def set_default(self, url: str):
+    def set_default_url(self, url: str):
         with self.lock:
             self.data["default_url"] = url
-            # Optionally also set current to default when changed:
-            # self.data["current_url"] = url
             self._save_json(self.config_path, self.data)
 
-    def set_temp(self, url: str, seconds: int):
+    def set_temp_url(self, url: str, seconds: int):
         with self.lock:
             self.data["current_url"] = url
             self.data["expires_at"] = time.time() + int(seconds)
             self._save_json(self.config_path, self.data)
 
-    # ----------------- presets handling -----------------
+    def clear_timer(self):
+        with self.lock:
+            self.data["expires_at"] = None
+            self._save_json(self.config_path, self.data)
+
+    # ----------------- presets management -----------------
 
     def get_presets(self) -> dict:
-        # read-only; no need to lock
-        return self.presets
+        return self.presets  # Already ordered dict of {name: {"url": ...}}
 
     def add_or_update_preset(self, name: str, url: str):
         with self.lock:
-            self.presets[name] = url
+            # ALWAYS enforce dict structure
+            if name in self.presets:
+                self.presets[name] = {"url": url}
+            else:
+                self.presets[name] = {"url": url}
+
             self._save_json(self.presets_path, self.presets)
 
     def delete_preset(self, name: str):
@@ -91,49 +112,24 @@ class RedirectState:
             if name in self.presets:
                 del self.presets[name]
                 self._save_json(self.presets_path, self.presets)
-                
+
     def rename_preset(self, old_name: str, new_name: str):
         with self.lock:
             if old_name not in self.presets:
                 return False
 
-            # Get current value
-            url = self.presets[old_name]
+            url_data = self.presets[old_name]
 
-            # Build a new ordered structure
             new_presets = OrderedDict()
-
-            for key, value in self.presets.items():
+            for key, val in self.presets.items():
                 if key == old_name:
-                    new_presets[new_name] = value
+                    new_presets[new_name] = val
                 else:
-                    new_presets[key] = value
+                    new_presets[key] = val
 
             self.presets = new_presets
             self._save_json(self.presets_path, self.presets)
             return True
-            
-    def add_or_update_preset(self, name: str, url: str):
-        with self.lock:
-            if name in self.presets:
-                # Overwrite existing entry but preserve position
-                self.presets[name] = url
-            else:
-                # Append new preset at end
-                self.presets[name] = url
-
-            self._save_json(self.presets_path, self.presets)
-            
-    def clear_timer(self):
-        self.timer = None
-
-    def save(self):
-        self._save_json(self.config_path, {
-            "current_url": self.current_url,
-            "default_url": self.default_url
-        })
-        self._save_json(self.presets_path, self.presets)
-    
 
     # ----------------- API info -----------------
 
