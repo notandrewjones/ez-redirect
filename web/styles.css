@@ -1,1 +1,225 @@
-styles.css
+/* GLOBAL */
+body {
+    margin: 0;
+    padding: 0;
+    background: #f4f4f7;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", Inter, sans-serif;
+    color: #222;
+}
+
+.container {
+    max-width: 650px;
+    margin: 40px auto;
+    padding: 10px;
+}
+
+h1 {
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #666;
+}
+
+/* CARD (SQUIRCLE) */
+.card {
+    background: white;
+    border-radius: 28px;
+    padding: 22px;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.07);
+}
+
+.card > *:first-child {
+    margin-top: 0 !important;
+}
+
+
+
+/* INPUTS */
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    font-size: 16px;
+}
+
+input:focus {
+    outline: none;
+    border-color: #007aff;
+}
+
+/* BUTTONS */
+button {
+    width: 100%;
+    padding: 14px;
+    border-radius: 16px;
+    border: none;
+    background: #007aff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+button:hover {
+    background: #0060d6;
+}
+
+button.secondary {
+    background: #ccc;
+    color: #333;
+}
+
+button.secondary:hover {
+    background: #bbb;
+}
+
+/* ICON BUTTONS */
+.icon-btn {
+    width: auto;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #e5e5ea;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.icon-btn.small {
+    padding: 6px 10px;
+    font-size: 18px;
+}
+
+/* PRESETS */
+.preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.preset-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+/* PRESETS (continued) */
+.preset-btn {
+    background: #e5e5ea !important;
+    padding: 12px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #000 !important;
+    cursor: pointer;
+    width: 100%;
+    border: none;
+    text-align: left;
+}
+
+.preset-btn span {
+	color: 000;
+}
+
+.preset-btn:hover {
+    background: #d9d9de;
+}
+
+.favicon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+/* TEMP TIMER */
+.temp-timer {
+    font-size: 14px;
+    color: #cc0000;
+    margin-top: -4px;
+    margin-bottom: 10px;
+}
+
+/* SECTION HEADER */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* MODAL */
+.modal {
+    position: fixed;
+    z-index: 9999;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.hidden {
+    display: none;
+}
+
+.modal-content {
+    max-width: 400px;
+    width: 100%;
+}
+
+/* MODAL HEADER */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.modal-icons {
+    display: flex;
+    gap: 14px;
+}
+
+.icon-only-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 22px;
+    padding: 4px;
+    color: #666;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.icon-only-btn:hover {
+    color: #000;
+    opacity: 0.8;
+}
+
+/* Make + and ... icons black */
+.icon-btn,
+.icon-btn.small {
+    color: #000 !important;
+}
+
+
+/* MODAL FOOTER BUTTONS */
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 18px;
+}

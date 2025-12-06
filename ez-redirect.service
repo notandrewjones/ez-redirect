@@ -1,0 +1,14 @@
+[Unit]
+Description=ez-redirect FastAPI Redirect Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/ez-redirect
+ExecStart=/usr/bin/env uvicorn backend.app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

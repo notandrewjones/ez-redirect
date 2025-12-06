@@ -1,1 +1,264 @@
-index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EZ Redirect</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>EZ Redirect</h1>
+    <p class="subtitle">Instant propogation redirects.</p>
+
+    <!-- CURRENT REDIRECT -->
+    <section class="card">
+        <h2>Current Redirect URL</h2>
+
+        <input id="current-url-input" placeholder="https://example.com">
+
+        <p id="temp-timer" class="temp-timer hidden"></p>
+
+        <button onclick="applyCurrentUrl()">Apply URL</button>
+    </section>
+
+    <!-- PRESETS -->
+    <section class="card">
+        <div class="section-header">
+            <h2>Presets</h2>
+            <button class="icon-btn" onclick="openAddPreset()">＋</button>
+        </div>
+
+        <div id="preset-list" class="preset-list"></div>
+    </section>
+
+    <!-- TEMPORARY -->
+    <section class="card">
+        <h2>Temporary Redirect</h2>
+        <input id="temp-url" placeholder="Temporary URL">
+        <input id="temp-seconds" type="number" value="300" min="10" step="10">
+        <button onclick="setTemp()">Activate Temporary Redirect</button>
+    </section>
+
+</div>
+
+
+<!-- PRESET MODAL -->
+<div id="preset-modal" class="modal hidden">
+    <div class="modal-content card">
+
+        <!-- MODAL HEADER -->
+        <div class="modal-header">
+            <h2 id="modal-title">Add Preset</h2>
+
+            <div class="modal-icons">
+                <button id="make-default-btn" class="icon-only-btn hidden" onclick="makeDefault()" title="Make Default">⭐</button>
+                <button id="delete-preset-btn" class="icon-only-btn hidden" onclick="deletePreset()" title="Delete">🗑</button>
+            </div>
+        </div>
+
+        <!-- INPUTS -->
+        <input id="preset-name" placeholder="Preset Name">
+        <input id="preset-url" placeholder="https://example.com">
+
+        <!-- MODAL FOOTER -->
+        <div class="modal-buttons">
+            <button class="secondary" onclick="closeModal()">Cancel</button>
+            <button onclick="savePreset()">Save</button>
+        </div>
+
+    </div>
+</div>
+
+
+<script>
+    let editingPreset = null;
+
+    function clearExistingTimer() {
+        if (window.timerInterval) {
+            clearInterval(window.timerInterval);
+            window.timerInterval = null;
+        }
+        document.getElementById("temp-timer").classList.add("hidden");
+    }
+
+    /* ============================
+       LOAD CURRENT URL + TIMER
+    ============================ */
+
+    async function loadCurrent() {
+        const data = await fetch('/api/current').then(r => r.json());
+        const timerEl = document.getElementById("temp-timer");
+
+        document.getElementById('current-url-input').value = data.current_url;
+        clearExistingTimer();
+
+        if (data.expires_at) {
+            function updateTimer() {
+                const now = Date.now() / 1000;
+                let remaining = Math.max(0, Math.floor(data.expires_at - now));
+
+                if (remaining <= 0) {
+                    timerEl.classList.add("hidden");
+                    clearExistingTimer();
+                    loadCurrent();
+                    return;
+                }
+
+                const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+                const secs = String(remaining % 60).padStart(2, '0');
+
+                timerEl.innerText = `Temporary override: ${mins}:${secs}`;
+                timerEl.classList.remove("hidden");
+            }
+
+            updateTimer();
+            window.timerInterval = setInterval(updateTimer, 1000);
+        }
+    }
+
+    /* ============================
+       PRESETS
+    ============================ */
+
+    async function loadPresets() {
+        const presets = await fetch('/api/presets').then(r => r.json());
+        const container = document.getElementById('preset-list');
+
+        container.innerHTML = "";
+
+        Object.entries(presets).forEach(([name, url]) => {
+            const row = document.createElement("div");
+            row.className = "preset-row";
+
+            const btn = document.createElement("button");
+            btn.className = "preset-btn";
+            btn.innerHTML = `
+                <img src="https://www.google.com/s2/favicons?domain=${url}" class="favicon">
+                <span>${name}</span>
+            `;
+            btn.onclick = () => applyPreset(url);
+
+            const menu = document.createElement("button");
+            menu.className = "icon-btn small";
+            menu.innerText = "⋯";
+            menu.onclick = () => openEditPreset(name, url);
+
+            row.appendChild(btn);
+            row.appendChild(menu);
+            container.appendChild(row);
+        });
+    }
+
+    async function applyPreset(url) {
+        clearExistingTimer();
+        await fetch(`/api/set?url=${encodeURIComponent(url)}`, { method: "POST" });
+        loadCurrent();
+    }
+
+    /* ============================
+       APPLY / TEMPORARY URL
+    ============================ */
+
+    async function applyCurrentUrl() {
+        clearExistingTimer();
+        const url = document.getElementById('current-url-input').value;
+        await fetch(`/api/set?url=${encodeURIComponent(url)}`, { method: "POST" });
+        loadCurrent();
+    }
+
+    async function setTemp() {
+        clearExistingTimer();
+        const url = document.getElementById("temp-url").value;
+        const seconds = document.getElementById("temp-seconds").value;
+
+        await fetch(`/api/temp?url=${encodeURIComponent(url)}&seconds=${seconds}`, {
+            method: "POST"
+        });
+
+        loadCurrent();
+    }
+
+    /* ============================
+       MODAL FUNCTIONS
+    ============================ */
+
+    function openAddPreset() {
+        editingPreset = null;
+        document.getElementById("modal-title").innerText = "Add Preset";
+
+        document.getElementById("preset-name").value = "";
+        document.getElementById("preset-url").value = "";
+
+        document.getElementById("delete-preset-btn").classList.add("hidden");
+        document.getElementById("make-default-btn").classList.add("hidden");
+
+        document.getElementById("preset-modal").classList.remove("hidden");
+    }
+
+    function openEditPreset(name, url) {
+        editingPreset = name;
+
+        document.getElementById("modal-title").innerText = "Edit Preset";
+        document.getElementById("preset-name").value = name;
+        document.getElementById("preset-url").value = url;
+
+        document.getElementById("delete-preset-btn").classList.remove("hidden");
+        document.getElementById("make-default-btn").classList.remove("hidden");
+
+        document.getElementById("preset-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+        document.getElementById("preset-modal").classList.add("hidden");
+    }
+
+    async function savePreset() {
+        const name = document.getElementById("preset-name").value;
+        const url = document.getElementById("preset-url").value;
+
+        if (editingPreset && editingPreset !== name) {
+            await fetch(`/api/presets/rename?old=${encodeURIComponent(editingPreset)}&new=${encodeURIComponent(name)}`, {
+                method: "POST"
+            });
+        }
+
+        await fetch(`/api/presets/add?name=${encodeURIComponent(name)}&url=${encodeURIComponent(url)}`, {
+            method: "POST"
+        });
+
+        closeModal();
+        loadPresets();
+    }
+
+    async function deletePreset() {
+        if (!editingPreset) return;
+
+        await fetch(`/api/presets/delete?name=${encodeURIComponent(editingPreset)}`, {
+            method: "POST"
+        });
+
+        closeModal();
+        loadPresets();
+    }
+
+    async function makeDefault() {
+        if (!editingPreset) return;
+
+        const url = document.getElementById("preset-url").value;
+
+        await fetch(`/api/set-default?url=${encodeURIComponent(url)}`, {
+            method: "POST"
+        });
+
+        closeModal();
+        loadPresets();
+    }
+
+    loadCurrent();
+    loadPresets();
+</script>
+
+</body>
+</html>
