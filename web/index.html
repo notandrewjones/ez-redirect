@@ -9,17 +9,19 @@
 
 <div class="container">
 
-    <h1>EZ Redirect</h1>
-    <p class="subtitle">Instant propagation redirects.</p>
+    <header class="app-header">
+        <div>
+            <h1>EZ Redirect</h1>
+            <p class="subtitle">Instant propagation redirects on your LAN.</p>
+        </div>
+        <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+    </header>
 
     <!-- CURRENT REDIRECT -->
     <section class="card">
         <h2>Current Redirect URL</h2>
-
         <input id="current-url-input" placeholder="https://example.com">
-
         <p id="temp-timer" class="temp-timer hidden"></p>
-
         <button onclick="applyCurrentUrl()">Apply URL</button>
     </section>
 
@@ -27,9 +29,8 @@
     <section class="card">
         <div class="section-header">
             <h2>Presets</h2>
-            <button class="icon-btn" onclick="openAddPreset()">＋</button>
+            <button class="icon-btn" onclick="openAddPreset()" title="Add preset">＋</button>
         </div>
-
         <div id="preset-list" class="preset-list"></div>
     </section>
 
@@ -37,12 +38,14 @@
     <section class="card">
         <h2>Temporary Redirect</h2>
         <input id="temp-url" placeholder="Temporary URL">
-        <input id="temp-seconds" type="number" value="300" min="10" step="10">
+        <div class="temp-row">
+            <input id="temp-seconds" type="number" value="300" min="10" step="10">
+            <span class="temp-label">seconds</span>
+        </div>
         <button onclick="setTemp()">Activate Temporary Redirect</button>
     </section>
 
 </div>
-
 
 <!-- PRESET MODAL -->
 <div id="preset-modal" class="modal hidden">
@@ -64,16 +67,53 @@
 
         <!-- MODAL FOOTER -->
         <div class="modal-buttons">
-            <button class="secondary" onclick="closeModal()">Cancel</button>
+            <button class="secondary" onclick="closePresetModal()">Cancel</button>
             <button onclick="savePreset()">Save</button>
         </div>
 
     </div>
 </div>
 
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content card">
+
+        <div class="modal-header">
+            <h2>Settings</h2>
+        </div>
+
+        <div class="settings-group">
+            <h3>Port</h3>
+            <p class="settings-help">This is the port the service listens on. Changing it requires a service restart.</p>
+            <input id="port-input" type="number" min="1024" max="65535">
+            <p id="port-status" class="settings-note"></p>
+        </div>
+
+		<div class="security-section">
+		    <label class="toggle-row">
+		        <input type="checkbox" id="api-key-enabled" onchange="toggleApiKeyEnabled()">
+		        Require API Key for Remote Preset Triggers
+		    </label>
+
+		    <label>API Key</label>
+		    <input id="api-key-value" placeholder="Enter custom API key">
+
+		    <button onclick="saveApiKey()">Save API Key</button>
+		</div>
+        
+
+        <div class="modal-buttons">
+            <button class="secondary" onclick="closeSettings()">Close</button>
+            <button onclick="saveSettings()">Save</button>
+        </div>
+
+    </div>
+</div>
 
 <script>
     let editingPreset = null;
+    let securityState = { api_key_enabled: false, api_key: "" };
+    let currentPort = 8000;
 
     function clearExistingTimer() {
         if (window.timerInterval) {
@@ -88,33 +128,38 @@
     ============================ */
 
     async function loadCurrent() {
-        const data = await fetch('/api/current').then(r => r.json());
-        const timerEl = document.getElementById("temp-timer");
+        try {
+            const res = await fetch('/api/current');
+            const data = await res.json();
+            const timerEl = document.getElementById("temp-timer");
 
-        document.getElementById('current-url-input').value = data.current_url;
-        clearExistingTimer();
+            document.getElementById('current-url-input').value = data.current_url || "";
+            clearExistingTimer();
 
-        if (data.expires_at) {
-            function updateTimer() {
-                const now = Date.now() / 1000;
-                let remaining = Math.max(0, Math.floor(data.expires_at - now));
+            if (data.expires_at) {
+                function updateTimer() {
+                    const now = Date.now() / 1000;
+                    let remaining = Math.max(0, Math.floor(data.expires_at - now));
 
-                if (remaining <= 0) {
-                    timerEl.classList.add("hidden");
-                    clearExistingTimer();
-                    loadCurrent();
-                    return;
+                    if (remaining <= 0) {
+                        timerEl.classList.add("hidden");
+                        clearExistingTimer();
+                        loadCurrent();
+                        return;
+                    }
+
+                    const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+                    const secs = String(remaining % 60).padStart(2, '0');
+
+                    timerEl.innerText = `Temporary override: ${mins}:${secs}`;
+                    timerEl.classList.remove("hidden");
                 }
 
-                const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
-                const secs = String(remaining % 60).padStart(2, '0');
-
-                timerEl.innerText = `Temporary override: ${mins}:${secs}`;
-                timerEl.classList.remove("hidden");
+                updateTimer();
+                window.timerInterval = setInterval(updateTimer, 1000);
             }
-
-            updateTimer();
-            window.timerInterval = setInterval(updateTimer, 1000);
+        } catch (err) {
+            console.error("Error loading current URL:", err);
         }
     }
 
@@ -123,40 +168,53 @@
     ============================ */
 
     async function loadPresets() {
-        const presets = await fetch('/api/presets').then(r => r.json());
-        const container = document.getElementById('preset-list');
+        try {
+            const res = await fetch('/api/presets');
+            const presets = await res.json();
+            const container = document.getElementById('preset-list');
 
-        container.innerHTML = "";
+            container.innerHTML = "";
 
-        Object.entries(presets).forEach(([name, data]) => {
-            const url = data.url;
+            Object.entries(presets).forEach(([name, data]) => {
+                const url = data.url;
 
-            const row = document.createElement("div");
-            row.className = "preset-row";
+                const row = document.createElement("div");
+                row.className = "preset-row";
 
-            const btn = document.createElement("button");
-            btn.className = "preset-btn";
-            btn.innerHTML = `
-                <img src="https://www.google.com/s2/favicons?domain=${url}" class="favicon">
-                <span>${name}</span>
-            `;
-            btn.onclick = () => applyPreset(name);
+                const btn = document.createElement("button");
+                btn.className = "preset-btn";
+                btn.innerHTML = `
+                    <img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}" class="favicon">
+                    <span>${name}</span>
+                `;
+                btn.onclick = () => applyPresetFromUI(url);
 
-            const menu = document.createElement("button");
-            menu.className = "icon-btn small";
-            menu.innerText = "⋯";
-            menu.onclick = () => openEditPreset(name, url);
+                const menu = document.createElement("button");
+                menu.className = "icon-btn small";
+                menu.innerText = "⋯";
+                menu.onclick = () => openEditPreset(name, url);
 
-            row.appendChild(btn);
-            row.appendChild(menu);
-            container.appendChild(row);
-        });
+                row.appendChild(btn);
+                row.appendChild(menu);
+                container.appendChild(row);
+            });
+        } catch (err) {
+            console.error("Error loading presets:", err);
+        }
     }
 
-    async function applyPreset(name) {
-        clearExistingTimer();
-        await fetch(`/preset/${encodeURIComponent(name)}`);
-        loadCurrent();
+    async function applyPresetFromUI(url) {
+        try {
+            clearExistingTimer();
+            await fetch("/api/set", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
+            loadCurrent();
+        } catch (err) {
+            console.error("Error applying preset:", err);
+        }
     }
 
     /* ============================
@@ -164,34 +222,42 @@
     ============================ */
 
     async function applyCurrentUrl() {
-        clearExistingTimer();
-        const url = document.getElementById('current-url-input').value;
+        try {
+            clearExistingTimer();
+            const url = document.getElementById('current-url-input').value;
 
-        await fetch("/api/set", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
-        });
+            await fetch("/api/set", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
 
-        loadCurrent();
+            loadCurrent();
+        } catch (err) {
+            console.error("Error setting current URL:", err);
+        }
     }
 
     async function setTemp() {
-        clearExistingTimer();
-        const url = document.getElementById("temp-url").value;
-        const seconds = document.getElementById("temp-seconds").value;
+        try {
+            clearExistingTimer();
+            const url = document.getElementById("temp-url").value;
+            const seconds = document.getElementById("temp-seconds").value;
 
-        await fetch("/api/temp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url, seconds })
-        });
+            await fetch("/api/temp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url, seconds })
+            });
 
-        loadCurrent();
+            loadCurrent();
+        } catch (err) {
+            console.error("Error setting temporary URL:", err);
+        }
     }
 
     /* ============================
-       MODAL FUNCTIONS
+       PRESET MODAL FUNCTIONS
     ============================ */
 
     function openAddPreset() {
@@ -220,7 +286,7 @@
         document.getElementById("preset-modal").classList.remove("hidden");
     }
 
-    function closeModal() {
+    function closePresetModal() {
         document.getElementById("preset-modal").classList.add("hidden");
     }
 
@@ -230,35 +296,43 @@
 
         if (!name || !url) return;
 
-        if (editingPreset && editingPreset !== name) {
-            await fetch("/api/presets/rename", {
+        try {
+            if (editingPreset && editingPreset !== name) {
+                await fetch("/api/presets/rename", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ old: editingPreset, new: name })
+                });
+            }
+
+            await fetch("/api/presets/add", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ old: editingPreset, new: name })
+                body: JSON.stringify({ name, url })
             });
+
+            closePresetModal();
+            loadPresets();
+        } catch (err) {
+            console.error("Error saving preset:", err);
         }
-
-        await fetch("/api/presets/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, url })
-        });
-
-        closeModal();
-        loadPresets();
     }
 
     async function deletePreset() {
         if (!editingPreset) return;
 
-        await fetch("/api/presets/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: editingPreset })
-        });
+        try {
+            await fetch("/api/presets/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: editingPreset })
+            });
 
-        closeModal();
-        loadPresets();
+            closePresetModal();
+            loadPresets();
+        } catch (err) {
+            console.error("Error deleting preset:", err);
+        }
     }
 
     async function makeDefault() {
@@ -266,21 +340,146 @@
 
         const url = document.getElementById("preset-url").value.trim();
 
-        await fetch("/api/set-default", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
-        });
+        try {
+            await fetch("/api/set-default", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
 
-        closeModal();
-        loadPresets();
-        loadCurrent();
+            closePresetModal();
+            loadPresets();
+            loadCurrent();
+        } catch (err) {
+            console.error("Error setting default URL:", err);
+        }
+    }
+
+    /* ============================
+       SETTINGS (PORT + SECURITY)
+    ============================ */
+
+    async function loadPort() {
+        try {
+            const res = await fetch("/api/port");
+            const data = await res.json();
+            currentPort = data.port || 8000;
+            document.getElementById("port-input").value = currentPort;
+            document.getElementById("port-status").innerText =
+                `Current service port: ${currentPort}`;
+        } catch (err) {
+            console.error("Error loading port:", err);
+        }
+    }
+
+    async function loadSecurity() {
+        try {
+            securityState = await fetch("/api/security/status").then(r => r.json());
+
+            document.getElementById("api-key-enabled").checked = !!securityState.api_key_enabled;
+            document.getElementById("api-key-value").value = securityState.api_key || "";
+
+        } catch (err) {
+            console.error("Error loading security settings:", err);
+        }
+    }
+
+    function openSettings() {
+        document.getElementById("settings-modal").classList.remove("hidden");
+        loadPort();
+        loadSecurity();
+    }
+
+    function closeSettings() {
+        document.getElementById("settings-modal").classList.add("hidden");
+    }
+
+    async function saveSettings() {
+        // Save port
+        const portVal = parseInt(document.getElementById("port-input").value, 10);
+        if (!isNaN(portVal) && portVal >= 1024 && portVal <= 65535 && portVal !== currentPort) {
+            try {
+                const res = await fetch("/api/port", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ port: portVal })
+                });
+                const data = await res.json();
+                currentPort = data.port;
+                document.getElementById("port-status").innerText =
+                    `Port updated to ${currentPort}. Restart service to apply.`;
+            } catch (err) {
+                console.error("Error saving port:", err);
+            }
+        }
+
+        // Save security toggle + key (if changed)
+        const enabledCheckbox = document.getElementById("api-key-enabled");
+        const desiredEnabled = enabledCheckbox.checked;
+
+        try {
+            if (desiredEnabled !== !!securityState.api_key_enabled) {
+                securityState = await fetch("/api/security/toggle", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ enabled: desiredEnabled })
+                }).then(r => r.json());
+            }
+
+            const keyInputVal = document.getElementById("api-key-value").value.trim();
+            if (keyInputVal && keyInputVal !== (securityState.api_key || "")) {
+                securityState = await fetch("/api/security/set-key", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ api_key: keyInputVal })
+                }).then(r => r.json());
+            }
+        } catch (err) {
+            console.error("Error saving security settings:", err);
+        }
+
+        closeSettings();
+    }
+
+    async function toggleApiKeyEnabled() {
+        const enabled = document.getElementById("api-key-enabled").checked;
+        try {
+            securityState = await fetch("/api/security/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled })
+            }).then(r => r.json());
+        } catch (err) {
+            console.error("Error toggling API key:", err);
+        }
+    }
+
+    async function saveApiKey() {
+        const key = document.getElementById("api-key-value").value.trim();
+
+        if (!key) {
+            alert("API key cannot be empty.");
+            return;
+        }
+
+        try {
+            securityState = await fetch("/api/security/set-key", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ api_key: key })
+            }).then(r => r.json());
+
+            alert("API key saved!");
+        } catch (err) {
+            console.error("Error saving API key:", err);
+        }
     }
 
     // INITIAL LOAD
     loadCurrent();
     loadPresets();
 </script>
+
 
 </body>
 </html>

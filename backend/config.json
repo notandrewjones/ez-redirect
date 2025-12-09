@@ -1,5 +1,8 @@
 {
-    "default_url": "https://wwww.clawson.tv/connectcard",
+    "default_url": "https://example.com",
     "current_url": "https://www.clawson.tv/connectcard",
-    "expires_at": null
+    "expires_at": null,
+    "port": 8000,
+    "api_key_enabled": true,
+    "api_key": "test"
 }
