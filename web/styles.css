@@ -1,233 +1,204 @@
-/* GLOBAL */
+/* ===============================
+   GLOBAL BASE STYLES
+   =============================== */
+
 body {
     margin: 0;
     padding: 0;
-    background: #f4f4f7;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", Inter, system-ui, sans-serif;
-    color: #111827;
+    background: #f5f6f8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #222;
 }
 
 .container {
-    max-width: 720px;
+    max-width: 800px;
     margin: 40px auto;
-    padding: 0 16px 32px;
+    padding: 0 20px;
 }
 
-/* HEADER */
+/* ===============================
+   HEADER (TITLE + SETTINGS ICON)
+   =============================== */
 
 .app-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    align-items: center;
+    margin-bottom: 30px;
 }
 
-h1 {
-    font-size: 28px;
-    font-weight: 700;
+.app-header h1 {
     margin: 0;
+    font-size: 32px;
+    font-weight: 700;
 }
 
 .subtitle {
-    margin: 4px 0 0;
+    margin: 2px 0 0;
+    color: #666;
     font-size: 14px;
-    color: #6b7280;
 }
 
-/* CARDS */
+/* ===============================
+   CARD COMPONENTS
+   =============================== */
 
 .card {
-    background: #ffffff;
-    border-radius: 24px;
-    padding: 18px 18px 16px;
-    margin-bottom: 16px;
-    box-shadow:
-        0 10px 30px rgba(15, 23, 42, 0.06),
-        0 1px 3px rgba(15, 23, 42, 0.08);
+    background: #fff;
+    padding: 22px;
+    border-radius: 18px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    margin-bottom: 28px;
 }
 
-.card h2 {
-    margin: 0 0 10px;
-    font-size: 16px;
-    font-weight: 600;
-}
+/* ===============================
+   INPUTS (MAIN PAGE)
+   =============================== */
 
-/* INPUTS & BUTTONS */
-
-input {
+.card input {
     width: 100%;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid #e5e7eb;
-    background: #f9fafb;
-    font-size: 14px;
-    outline: none;
     box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border 0.15s ease;
 }
 
-input:focus {
-    border-color: #4f46e5;
-    background: #ffffff;
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.15);
+.card input:focus {
+    border-color: #007AFF;
 }
+
+/* ===============================
+   BUTTONS
+   =============================== */
 
 button {
-    border-radius: 999px;
+    background: #007AFF;
+    color: white;
     border: none;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 15px;
     cursor: pointer;
-    background: #111827;
-    color: #ffffff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: transform 0.05s ease-out, box-shadow 0.05s ease-out, background 0.1s;
+    transition: 0.15s ease;
 }
 
 button:hover {
-    transform: translateY(-0.5px);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+    background: #006BE6;
 }
 
-button:active {
-    transform: translateY(0);
-    box-shadow: none;
+.secondary {
+    background: #e8e8ea;
+    color: #333;
 }
 
-button.secondary {
-    background: #e5e7eb;
-    color: #111827;
+.secondary:hover {
+    background: #d0d0d4;
 }
 
-button.secondary:hover {
-    background: #d1d5db;
-}
-
-/* ICON BUTTONS */
-
-.icon-btn {
-    background: #e5e7eb;
-    color: #000000;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 999px;
+/* Icon-only buttons (gear, plus, menu) */
+.icon-btn,
+.icon-only-btn {
+    background: #f0f0f3;
+    border-radius: 12px;
+    padding: 7px 11px;
     font-size: 18px;
-    box-shadow: none;
+    color: #000 !important; /* FIX: icons no longer white */
+    cursor: pointer;
+    border: 1px solid #ddd;
+    transition: 0.15s ease;
 }
 
 .icon-btn.small {
-    width: 28px;
-    height: 28px;
+    padding: 6px 10px;
     font-size: 16px;
 }
 
-.icon-only-btn {
-    background: transparent;
-    border-radius: 999px;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    font-size: 16px;
-    color: #111827;
-}
-
+.icon-btn:hover,
 .icon-only-btn:hover {
-    background: #f3f4f6;
+    background: #e6e6ea;
 }
 
-/* SECTIONS */
+/* ===============================
+   PRESETS LIST
+   =============================== */
 
 .section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 14px;
 }
-
-/* TEMP TIMER */
-
-.temp-timer {
-    margin: 8px 0 0;
-    font-size: 13px;
-    color: #4b5563;
-}
-
-/* TEMP REDIRECT ROW */
-
-.temp-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 8px 0 0;
-}
-
-.temp-row input {
-    flex: 0 0 90px;
-}
-
-.temp-label {
-    font-size: 13px;
-    color: #6b7280;
-}
-
-/* PRESETS */
 
 .preset-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .preset-row {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    background: #fafafa;
+    border-radius: 14px;
+    padding: 10px 14px;
+    border: 1px solid #eaeaea;
+    transition: 0.15s ease;
+	cursor: pointer;
+}
+
+.preset-row:hover {
+    background: #f2f2f5;
+    border-color: #dcdce0;
 }
 
 .preset-btn {
-    background: #e5e5ea !important;
-    padding: 10px 12px;
-    border-radius: 16px;
     display: flex;
-    align-items: center;
     gap: 10px;
-    color: #000000 !important;
-    cursor: pointer;
-    width: 100%;
+    align-items: center;
+    background: transparent;
     border: none;
-    text-align: left;
-}
-
-.preset-btn:hover {
-    background: #d4d4dd !important;
-    box-shadow: none;
+    padding: 0;
+    font-size: 16px;
+    pointer-events: none;
 }
 
 .preset-btn span {
-    font-size: 14px;
-    font-weight: 500;
+    color: #000;
 }
 
 .favicon {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
 }
 
-/* MODALS */
+/* ===============================
+   TEMPORARY TIMER
+   =============================== */
+
+.temp-timer {
+    font-size: 14px;
+    margin-top: -5px;
+    margin-bottom: 12px;
+    color: #d35400;
+}
+
+/* ===============================
+   MODALS (SHARED)
+   =============================== */
 
 .modal {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.25);
+    background: rgba(0,0,0,0.35);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 50;
 }
 
 .modal.hidden {
@@ -235,112 +206,98 @@ button.secondary:hover {
 }
 
 .modal-content {
+    background: #fff;
+    width: 90%;
     max-width: 480px;
-    width: 100%;
+    padding: 28px;
+    border-radius: 18px;
+    box-shadow: 0 5px 24px rgba(0,0,0,0.18);
 }
 
 .modal-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-.modal-header h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.modal-icons {
-    display: flex;
     align-items: center;
-    gap: 6px;
 }
 
 .modal-buttons {
+    margin-top: 25px;
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-top: 18px;
+    gap: 12px;
 }
 
-/* SETTINGS */
+/* ===============================
+   SETTINGS MODAL — FINALLY FIXED
+   =============================== */
 
 .settings-group {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid #e5e7eb;
+    margin-bottom: 28px;
 }
 
-.settings-group:first-of-type {
-    border-top: none;
-    padding-top: 0;
+/* Remove Safari width stretching */
+.settings-group input {
+    width: auto !important;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
-.settings-group h3 {
-    margin: 0 0 4px;
-    font-size: 14px;
-    font-weight: 600;
+/* PORT FIELD FIX */
+#port-input {
+    width: 120px !important;
+    max-width: 120px !important;
+    flex: 0 0 120px !important;
 }
 
-.settings-help {
-    margin: 0 0 8px;
-    font-size: 13px;
-    color: #6b7280;
+.port-row {
+    display: flex;
+    align-items: center;
 }
 
-.settings-note {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: #6b7280;
-}
-
+/* Toggle fix */
 .toggle-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 8px 0 10px;
-    font-size: 13px;
-    color: #111827;
+    margin: 10px 0 16px 0;
+}
+
+.toggle-row label {
+    display: inline-block !important;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
 }
 
 .toggle-row input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+    margin: 0;
 }
 
-.field-label {
-    display: block;
-    margin: 4px 0 4px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #374151;
-}
-
-.api-key-row {
+/* API key + Save button row */
+.api-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
-.api-key-row input {
+#api-key-value {
     flex: 1;
 }
 
-/* CODE STYLE */
-
-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 6px;
-    background: #f3f4f6;
-    color: #111827;
+.small-btn {
+    padding: 8px 14px;
+    font-size: 14px;
 }
 
-/* UTILS */
+/* Help / notes */
+.settings-help {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 8px 0;
+}
 
-.hidden {
-    display: none;
+.settings-note {
+    font-size: 13px;
+    margin-top: 6px;
 }
