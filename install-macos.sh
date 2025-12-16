@@ -332,6 +332,12 @@ create_helper_scripts() {
     echo ""
     echo "Creating helper scripts..."
     
+    # Ensure /usr/local/bin exists
+    if [ ! -d "/usr/local/bin" ]; then
+        sudo mkdir -p /usr/local/bin
+        print_status "Created /usr/local/bin directory"
+    fi
+    
     # ez-update script
     sudo tee /usr/local/bin/ez-update > /dev/null <<'UPDATEEOF'
 #!/bin/bash
