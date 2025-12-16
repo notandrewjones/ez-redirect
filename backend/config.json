@@ -1,6 +1,6 @@
 {
-    "default_url": "https://example.com",
-    "current_url": "https://www.clawson.tv/give",
+    "default_url": "https://www.clawson.tv/give",
+    "current_url": "https://www.clawson.tv/connectcard",
     "expires_at": null,
     "port": 8000,
     "api_key_enabled": false,

@@ -1,9 +1,22 @@
+"""
+EZ Redirect - FastAPI Backend
+
+A simple redirect server with preset management and temporary redirects.
+"""
+
 from fastapi import FastAPI, Response, HTTPException, Body, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import sys
 
-from .redirect_state import RedirectState
+# Ensure the parent directory is in the path for imports
+current_dir = Path(__file__).resolve().parent
+base_dir = current_dir.parent
+if str(base_dir) not in sys.path:
+    sys.path.insert(0, str(base_dir))
+
+from backend.redirect_state import RedirectState
 
 
 app = FastAPI(
@@ -236,6 +249,14 @@ async def activate_preset_by_url(
         "active_preset": preset_name,
         "active_url": preset_data["url"],
     }
+
+
+# ----------------- HEALTH CHECK -----------------
+
+@app.get("/api/health")
+def api_health():
+    """Simple health check endpoint."""
+    return {"status": "healthy", "service": "ez-redirect"}
 
 
 # ----------------- DEV ENTRYPOINT -----------------
