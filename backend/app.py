@@ -4,6 +4,7 @@ EZ Redirect - FastAPI Backend
 A simple redirect server with preset management and temporary redirects.
 """
 
+from typing import Optional
 from fastapi import FastAPI, Response, HTTPException, Body, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -208,7 +209,7 @@ def api_set_port(payload: dict = Body(...)):
 @app.get("/preset/{preset_name}")
 async def activate_preset_by_url(
     preset_name: str,
-    key: str | None = Query(default=None),
+    key: Optional[str] = Query(default=None),
 ):
     """
     Apply a preset by name.
