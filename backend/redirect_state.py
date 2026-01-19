@@ -304,7 +304,7 @@ class RedirectState:
 
     def create_event_in_supabase(self, event_id: str, start_time: Optional[datetime] = None) -> Dict[str, Any]:
         """
-        Create a new event in Supabase using the stored procedure.
+        Create a new event in Supabase by inserting directly into the events table.
         """
         config = self.get_supabase_config()
         
@@ -315,23 +315,32 @@ class RedirectState:
             "apikey": config["api_key"],
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
+            "Prefer": "return=minimal"
         }
 
-        payload = {"p_event_id": event_id}
+        payload = {
+            "event_id": event_id,
+            "is_live": True,
+            "resi_embed_id": "70c58906-58c6-4306-bdd8-813af42557d5"
+        }
+        
+        # Add start_time if provided
+        if start_time:
+            payload["start_time"] = start_time.isoformat()
 
         try:
             response = requests.post(
-                f"{config['url']}/rest/v1/rpc/create_event",
+                f"{config['url']}/rest/v1/events",
                 json=payload,
                 headers=headers,
                 timeout=10
             )
             
             if response.status_code in (200, 201, 204):
-                # If start_time provided, update the event's service_start_time
-                if start_time:
-                    self._update_event_start_time(event_id, start_time)
                 return {"success": True, "event_id": event_id}
+            elif response.status_code == 409:
+                # Event already exists, that's fine
+                return {"success": True, "event_id": event_id, "existed": True}
             else:
                 return {
                     "success": False,

@@ -1,17 +1,14 @@
 {
-    "default_url": "https://www.clawson.tv/give",
-    "current_url": "https://www.clawson.tv/connectcard",
+    "default_url": "https://example.com",
+    "current_url": "https://example.com",
     "expires_at": null,
     "port": 8000,
     "api_key_enabled": false,
-    "api_key": "test",
-    "supabase_url": "https://qwrjctxnrbijeukarenr.supabase.co",
-    "supabase_api_key": "sb_secret_Yb1H0KRlgeiS__ne6kYUZw_9r7qTTqy",
+    "api_key": "your-api-key-here",
+    "supabase_url": "https://your-project.supabase.co",
+    "supabase_api_key": "your-supabase-api-key-here",
     "scheduled_events": [
-        {
-            "day": "sunday",
-            "time": "11:00",
-            "enabled": true
-        }
-    ]
+        {"day": "sunday", "time": "10:30", "enabled": true}
+    ],
+    "manual_events": []
 }
