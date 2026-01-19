@@ -4,5 +4,14 @@
     "expires_at": null,
     "port": 8000,
     "api_key_enabled": false,
-    "api_key": "test"
+    "api_key": "test",
+    "supabase_url": "https://qwrjctxnrbijeukarenr.supabase.co",
+    "supabase_api_key": "sb_secret_Yb1H0KRlgeiS__ne6kYUZw_9r7qTTqy",
+    "scheduled_events": [
+        {
+            "day": "sunday",
+            "time": "11:00",
+            "enabled": true
+        }
+    ]
 }

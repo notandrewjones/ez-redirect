@@ -17,6 +17,11 @@
         <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
     </header>
 
+    <!-- SUPABASE STATUS -->
+    <div id="supabase-status" class="status-bar hidden">
+        <span id="supabase-status-text">Supabase: Not configured</span>
+    </div>
+
     <!-- CURRENT REDIRECT -->
     <section class="card">
         <h2>Current Redirect URL</h2>
@@ -45,65 +50,104 @@
         <button onclick="setTemp()">Activate Temporary Redirect</button>
     </section>
 
+    <!-- EVENTS -->
+    <section class="card">
+        <div class="section-header">
+            <h2>Event Schedule</h2>
+            <button class="icon-btn" onclick="openEventManager()" title="Manage events">📅</button>
+        </div>
+        <div id="next-event-info" class="next-event-info">
+            <span>Loading schedule...</span>
+        </div>
+        <button onclick="createEventNow()" class="secondary">Create Event Now</button>
+    </section>
+
 </div>
 
 <!-- PRESET MODAL -->
 <div id="preset-modal" class="modal hidden">
-    <div class="modal-content card">
-
-        <!-- MODAL HEADER -->
+    <div class="modal-content card modal-large">
         <div class="modal-header">
             <h2 id="modal-title">Add Preset</h2>
-
             <div class="modal-icons">
                 <button id="make-default-btn" class="icon-only-btn hidden" onclick="makeDefault()" title="Make Default">⭐</button>
                 <button id="delete-preset-btn" class="icon-only-btn hidden" onclick="deletePreset()" title="Delete">🗑</button>
             </div>
         </div>
 
-        <!-- INPUTS -->
-        <input id="preset-name" placeholder="Preset Name">
-        <input id="preset-url" placeholder="https://example.com">
+        <div class="form-section">
+            <label>Preset Name</label>
+            <input id="preset-name" placeholder="e.g., Connect Card">
+            <label>Redirect URL</label>
+            <input id="preset-url" placeholder="https://example.com">
+        </div>
 
-        <!-- MODAL FOOTER -->
+        <div class="form-section">
+            <div class="section-header-inline">
+                <h3>Website Cue</h3>
+                <label class="toggle-label">
+                    <input type="checkbox" id="cue-enabled" onchange="toggleCueFields()">
+                    <span>Show cue on website</span>
+                </label>
+            </div>
+            
+            <div id="cue-fields" class="cue-fields hidden">
+                <label>Headline</label>
+                <input id="cue-headline" placeholder="e.g., Welcome!">
+                <label>Body Text</label>
+                <textarea id="cue-body" placeholder="e.g., Thanks for joining us today..." rows="2"></textarea>
+                <label>Button Text</label>
+                <input id="cue-button-text" placeholder="e.g., Connect Card">
+                <label>Button URL</label>
+                <input id="cue-button-url" placeholder="https://example.com/page">
+            </div>
+            
+            <p id="cue-disabled-note" class="help-text">When disabled, activating this preset will hide the cue box on the website.</p>
+        </div>
+
         <div class="modal-buttons">
             <button class="secondary" onclick="closePresetModal()">Cancel</button>
             <button onclick="savePreset()">Save</button>
         </div>
-
     </div>
 </div>
 
 <!-- SETTINGS MODAL -->
-<!-- SETTINGS MODAL -->
 <div id="settings-modal" class="modal hidden">
-    <div class="modal-content card">
-
+    <div class="modal-content card modal-large">
         <div class="modal-header">
             <h2>Settings</h2>
         </div>
 
-        <!-- PORT SECTION -->
+        <div class="settings-group">
+            <h3>Supabase Connection</h3>
+            <p class="settings-help">Connect to Supabase to post cues to your livestream page.</p>
+            <label>Supabase URL</label>
+            <input id="supabase-url" placeholder="https://your-project.supabase.co">
+            <label>API Key</label>
+            <input id="supabase-key" type="password" placeholder="Your Supabase API key">
+            <div class="button-row">
+                <button class="small-btn" onclick="saveSupabaseConfig()">Save</button>
+                <button class="small-btn secondary" onclick="testSupabaseConnection()">Test Connection</button>
+            </div>
+            <p id="supabase-test-result" class="settings-note"></p>
+        </div>
+
         <div class="settings-group">
             <h3>Port</h3>
             <p class="settings-help">The port the service listens on. Changing requires a restart.</p>
-
             <div class="port-row">
                 <input id="port-input" type="number" min="1024" max="65535">
             </div>
-
             <p id="port-status" class="settings-note"></p>
         </div>
 
-        <!-- SECURITY SECTION -->
         <div class="settings-group">
             <h3>API Security</h3>
-
             <div class="toggle-row">
                 <input type="checkbox" id="api-key-enabled">
                 <label for="api-key-enabled">Require API Key for Remote Triggers</label>
             </div>
-
             <label>API Key</label>
             <div class="api-row">
                 <input id="api-key-value" placeholder="Enter custom API key">
@@ -111,21 +155,108 @@
             </div>
         </div>
 
-        <!-- FOOTER BUTTONS -->
         <div class="modal-buttons">
             <button class="secondary" onclick="closeSettings()">Close</button>
             <button onclick="saveSettings()">Save</button>
         </div>
-
     </div>
 </div>
 
+<!-- EVENT MANAGER MODAL -->
+<div id="event-modal" class="modal hidden">
+    <div class="modal-content card modal-large">
+        <div class="modal-header">
+            <h2>Event Schedule</h2>
+        </div>
+
+        <div class="settings-group">
+            <div class="section-header-inline">
+                <h3>Recurring Events</h3>
+                <button class="icon-btn small" onclick="openAddScheduledEvent()" title="Add">＋</button>
+            </div>
+            <p class="settings-help">Events that automatically create on the same day/time each week.</p>
+            <div id="scheduled-events-list" class="event-list"></div>
+        </div>
+
+        <div class="settings-group">
+            <div class="section-header-inline">
+                <h3>Upcoming Manual Events</h3>
+                <button class="icon-btn small" onclick="openAddManualEvent()" title="Add">＋</button>
+            </div>
+            <p class="settings-help">One-time events for specific dates.</p>
+            <div id="manual-events-list" class="event-list"></div>
+        </div>
+
+        <div class="modal-buttons">
+            <button onclick="closeEventManager()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD SCHEDULED EVENT MODAL -->
+<div id="add-scheduled-modal" class="modal hidden">
+    <div class="modal-content card">
+        <div class="modal-header">
+            <h2 id="scheduled-modal-title">Add Recurring Event</h2>
+        </div>
+        <label>Day of Week</label>
+        <select id="scheduled-day">
+            <option value="sunday">Sunday</option>
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+            <option value="saturday">Saturday</option>
+        </select>
+        <label>Time</label>
+        <input type="time" id="scheduled-time" value="11:00">
+        <div class="toggle-row">
+            <input type="checkbox" id="scheduled-enabled" checked>
+            <label for="scheduled-enabled">Enabled</label>
+        </div>
+        <div class="modal-buttons">
+            <button class="secondary" onclick="closeAddScheduledEvent()">Cancel</button>
+            <button onclick="saveScheduledEvent()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MANUAL EVENT MODAL -->
+<div id="add-manual-modal" class="modal hidden">
+    <div class="modal-content card">
+        <div class="modal-header">
+            <h2>Add Manual Event</h2>
+        </div>
+        <label>Date</label>
+        <input type="date" id="manual-date">
+        <label>Time</label>
+        <input type="time" id="manual-time" value="11:00">
+        <div class="modal-buttons">
+            <button class="secondary" onclick="closeAddManualEvent()">Cancel</button>
+            <button onclick="saveManualEvent()">Save</button>
+        </div>
+    </div>
+</div>
 
 <script>
     let editingPreset = null;
+    let editingScheduledIndex = null;
     let securityState = { api_key_enabled: false, api_key: "" };
     let currentPort = 8000;
     let timerInterval = null;
+    let supabaseConfigured = false;
+
+    // ============================
+    // INITIALIZATION
+    // ============================
+    
+    async function initApp() {
+        await loadCurrent();
+        await loadPresets();
+        await loadSupabaseStatus();
+        await loadNextEventInfo();
+    }
 
     function clearExistingTimer() {
         if (timerInterval) {
@@ -135,9 +266,36 @@
         document.getElementById("temp-timer").classList.add("hidden");
     }
 
-    /* ============================
-       LOAD CURRENT URL + TIMER
-    ============================ */
+    // ============================
+    // SUPABASE STATUS
+    // ============================
+
+    async function loadSupabaseStatus() {
+        try {
+            const res = await fetch('/api/supabase/config');
+            const data = await res.json();
+            supabaseConfigured = data.configured;
+            
+            const statusBar = document.getElementById("supabase-status");
+            const statusText = document.getElementById("supabase-status-text");
+            
+            if (data.configured) {
+                statusBar.classList.remove("hidden", "status-error");
+                statusBar.classList.add("status-ok");
+                statusText.innerText = "✓ Supabase connected";
+            } else {
+                statusBar.classList.remove("hidden", "status-ok");
+                statusBar.classList.add("status-error");
+                statusText.innerText = "⚠ Supabase not configured - cues won't be posted";
+            }
+        } catch (err) {
+            console.error("Error loading Supabase status:", err);
+        }
+    }
+
+    // ============================
+    // LOAD CURRENT URL + TIMER
+    // ============================
 
     async function loadCurrent() {
         try {
@@ -156,7 +314,6 @@
                     if (remaining <= 0) {
                         timerEl.classList.add("hidden");
                         clearExistingTimer();
-                        // Don't call loadCurrent() here – avoids infinite loop
                         return;
                     }
 
@@ -175,9 +332,9 @@
         }
     }
 
-    /* ============================
-       PRESET LIST + UI
-    ============================ */
+    // ============================
+    // PRESET LIST + UI
+    // ============================
 
     async function loadPresets() {
         try {
@@ -189,27 +346,29 @@
 
             Object.entries(presets).forEach(([name, data]) => {
                 const url = data.url;
+                const hasCue = data.cue !== null;
 
                 const row = document.createElement("div");
                 row.className = "preset-row";
-
-                // Make the entire row clickable
-                row.onclick = () => applyPresetFromUI(url);
+                row.onclick = () => activatePreset(name);
 
                 const btn = document.createElement("div");
                 btn.className = "preset-btn";
+                
+                const cueIndicator = hasCue ? '<span class="cue-indicator" title="Has website cue">📺</span>' : '';
+                
                 btn.innerHTML = `
                     <img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(url)}" class="favicon">
                     <span>${name}</span>
+                    ${cueIndicator}
                 `;
 
                 const menu = document.createElement("button");
                 menu.className = "icon-btn small";
                 menu.innerText = "⋯";
-                // Prevent menu click from triggering preset activation
                 menu.onclick = (e) => {
                     e.stopPropagation();
-                    openEditPreset(name, url);
+                    openEditPreset(name, data);
                 };
 
                 row.appendChild(btn);
@@ -221,42 +380,42 @@
         }
     }
 
-    async function applyPresetFromUI(url) {
+    async function activatePreset(name) {
         try {
             clearExistingTimer();
 
-            await fetch(
-                "/api/set",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url })
-                }
-            );
+            const res = await fetch("/api/preset/activate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name })
+            });
+            
+            const data = await res.json();
+            
+            if (data.cue_error) {
+                console.warn("Cue post error:", data.cue_error);
+            }
 
             loadCurrent();
         } catch (err) {
-            console.error("Error applying preset:", err);
+            console.error("Error activating preset:", err);
         }
     }
 
-    /* ============================
-       APPLY / TEMPORARY URL
-    ============================ */
+    // ============================
+    // APPLY / TEMPORARY URL
+    // ============================
 
     async function applyCurrentUrl() {
         try {
             clearExistingTimer();
-            const url = document.getElementById('current-url-input').value;
+            const url = document.getElementById("current-url-input").value;
 
-            await fetch(
-                "/api/set",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url })
-                }
-            );
+            await fetch("/api/set", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url })
+            });
 
             loadCurrent();
         } catch (err) {
@@ -270,14 +429,11 @@
             const url = document.getElementById("temp-url").value;
             const seconds = document.getElementById("temp-seconds").value;
 
-            await fetch(
-                "/api/temp",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url, seconds })
-                }
-            );
+            await fetch("/api/temp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url, seconds })
+            });
 
             loadCurrent();
         } catch (err) {
@@ -285,9 +441,23 @@
         }
     }
 
-    /* ============================
-       PRESET MODAL FUNCTIONS
-    ============================ */
+    // ============================
+    // PRESET MODAL FUNCTIONS
+    // ============================
+
+    function toggleCueFields() {
+        const enabled = document.getElementById("cue-enabled").checked;
+        const fields = document.getElementById("cue-fields");
+        const note = document.getElementById("cue-disabled-note");
+        
+        if (enabled) {
+            fields.classList.remove("hidden");
+            note.classList.add("hidden");
+        } else {
+            fields.classList.add("hidden");
+            note.classList.remove("hidden");
+        }
+    }
 
     function openAddPreset() {
         editingPreset = null;
@@ -295,23 +465,45 @@
 
         document.getElementById("preset-name").value = "";
         document.getElementById("preset-url").value = "";
+        document.getElementById("cue-enabled").checked = false;
+        document.getElementById("cue-headline").value = "";
+        document.getElementById("cue-body").value = "";
+        document.getElementById("cue-button-text").value = "";
+        document.getElementById("cue-button-url").value = "";
 
         document.getElementById("delete-preset-btn").classList.add("hidden");
         document.getElementById("make-default-btn").classList.add("hidden");
 
+        toggleCueFields();
         document.getElementById("preset-modal").classList.remove("hidden");
     }
 
-    function openEditPreset(name, url) {
+    function openEditPreset(name, data) {
         editingPreset = name;
 
         document.getElementById("modal-title").innerText = "Edit Preset";
         document.getElementById("preset-name").value = name;
-        document.getElementById("preset-url").value = url;
+        document.getElementById("preset-url").value = data.url || "";
+        
+        const hasCue = data.cue !== null;
+        document.getElementById("cue-enabled").checked = hasCue;
+        
+        if (hasCue && data.cue) {
+            document.getElementById("cue-headline").value = data.cue.headline || "";
+            document.getElementById("cue-body").value = data.cue.body_text || "";
+            document.getElementById("cue-button-text").value = data.cue.button_text || "";
+            document.getElementById("cue-button-url").value = data.cue.button_url || "";
+        } else {
+            document.getElementById("cue-headline").value = "";
+            document.getElementById("cue-body").value = "";
+            document.getElementById("cue-button-text").value = "";
+            document.getElementById("cue-button-url").value = "";
+        }
 
         document.getElementById("delete-preset-btn").classList.remove("hidden");
         document.getElementById("make-default-btn").classList.remove("hidden");
 
+        toggleCueFields();
         document.getElementById("preset-modal").classList.remove("hidden");
     }
 
@@ -322,8 +514,19 @@
     async function savePreset() {
         const name = document.getElementById("preset-name").value.trim();
         const url = document.getElementById("preset-url").value.trim();
+        const cueEnabled = document.getElementById("cue-enabled").checked;
 
         if (!name || !url) return;
+
+        let cue = null;
+        if (cueEnabled) {
+            cue = {
+                headline: document.getElementById("cue-headline").value.trim(),
+                body_text: document.getElementById("cue-body").value.trim(),
+                button_text: document.getElementById("cue-button-text").value.trim(),
+                button_url: document.getElementById("cue-button-url").value.trim()
+            };
+        }
 
         try {
             if (editingPreset && editingPreset !== name) {
@@ -337,7 +540,7 @@
             await fetch("/api/presets/add", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, url })
+                body: JSON.stringify({ name, url, cue })
             });
 
             closePresetModal();
@@ -366,7 +569,6 @@
 
     async function makeDefault() {
         if (!editingPreset) return;
-
         const url = document.getElementById("preset-url").value.trim();
 
         try {
@@ -384,9 +586,9 @@
         }
     }
 
-    /* ============================
-       SETTINGS (PORT + SECURITY)
-    ============================ */
+    // ============================
+    // SETTINGS MODAL
+    // ============================
 
     async function loadPort() {
         try {
@@ -394,8 +596,7 @@
             const data = await res.json();
             currentPort = data.port || 8000;
             document.getElementById("port-input").value = currentPort;
-            document.getElementById("port-status").innerText =
-                `Current service port: ${currentPort}`;
+            document.getElementById("port-status").innerText = `Current service port: ${currentPort}`;
         } catch (err) {
             console.error("Error loading port:", err);
         }
@@ -404,12 +605,21 @@
     async function loadSecurity() {
         try {
             securityState = await fetch("/api/security/status").then(r => r.json());
-
             document.getElementById("api-key-enabled").checked = !!securityState.api_key_enabled;
             document.getElementById("api-key-value").value = securityState.api_key || "";
-
         } catch (err) {
             console.error("Error loading security settings:", err);
+        }
+    }
+
+    async function loadSupabaseConfig() {
+        try {
+            const res = await fetch("/api/supabase/config");
+            const data = await res.json();
+            document.getElementById("supabase-url").value = data.url || "";
+            document.getElementById("supabase-key").value = data.api_key_full || "";
+        } catch (err) {
+            console.error("Error loading Supabase config:", err);
         }
     }
 
@@ -417,14 +627,53 @@
         document.getElementById("settings-modal").classList.remove("hidden");
         loadPort();
         loadSecurity();
+        loadSupabaseConfig();
     }
 
     function closeSettings() {
         document.getElementById("settings-modal").classList.add("hidden");
     }
 
+    async function saveSupabaseConfig() {
+        const url = document.getElementById("supabase-url").value.trim();
+        const apiKey = document.getElementById("supabase-key").value.trim();
+
+        try {
+            await fetch("/api/supabase/config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url, api_key: apiKey })
+            });
+            
+            document.getElementById("supabase-test-result").innerText = "Configuration saved!";
+            loadSupabaseStatus();
+        } catch (err) {
+            console.error("Error saving Supabase config:", err);
+        }
+    }
+
+    async function testSupabaseConnection() {
+        const resultEl = document.getElementById("supabase-test-result");
+        resultEl.innerText = "Testing...";
+
+        try {
+            const res = await fetch("/api/supabase/test", { method: "POST" });
+            const data = await res.json();
+
+            if (data.success) {
+                resultEl.innerText = "✓ Connection successful!";
+                resultEl.style.color = "#4ade80";
+            } else {
+                resultEl.innerText = `✗ Error: ${data.error}`;
+                resultEl.style.color = "#f87171";
+            }
+        } catch (err) {
+            resultEl.innerText = `✗ Error: ${err.message}`;
+            resultEl.style.color = "#f87171";
+        }
+    }
+
     async function saveSettings() {
-        // Save port
         const portVal = parseInt(document.getElementById("port-input").value, 10);
         if (!isNaN(portVal) && portVal >= 1024 && portVal <= 65535 && portVal !== currentPort) {
             try {
@@ -435,14 +684,12 @@
                 });
                 const data = await res.json();
                 currentPort = data.port;
-                document.getElementById("port-status").innerText =
-                    `Port updated to ${currentPort}. Restart service to apply.`;
+                document.getElementById("port-status").innerText = `Port updated to ${currentPort}. Restart service to apply.`;
             } catch (err) {
                 console.error("Error saving port:", err);
             }
         }
 
-        // Save security toggle + key (if changed)
         const enabledCheckbox = document.getElementById("api-key-enabled");
         const desiredEnabled = enabledCheckbox.checked;
 
@@ -472,7 +719,6 @@
 
     async function saveApiKey() {
         const key = document.getElementById("api-key-value").value.trim();
-
         if (!key) {
             alert("API key cannot be empty.");
             return;
@@ -491,11 +737,279 @@
         }
     }
 
-    // INITIAL LOAD
-    loadCurrent();
-    loadPresets();
-</script>
+    // ============================
+    // EVENT MANAGEMENT
+    // ============================
 
+    async function loadNextEventInfo() {
+        try {
+            const res = await fetch("/api/events/scheduled");
+            const scheduled = await res.json();
+            
+            const infoEl = document.getElementById("next-event-info");
+            
+            const enabledEvents = scheduled.filter(e => e.enabled);
+            if (enabledEvents.length === 0) {
+                infoEl.innerHTML = "<span>No recurring events scheduled</span>";
+                return;
+            }
+            
+            // Find next occurrence
+            const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+            const now = new Date();
+            const currentDay = now.getDay();
+            
+            let nextEvent = null;
+            let daysUntil = 8;
+            
+            for (const event of enabledEvents) {
+                const eventDayIndex = days.indexOf(event.day.toLowerCase());
+                let daysAway = eventDayIndex - currentDay;
+                if (daysAway < 0) daysAway += 7;
+                if (daysAway === 0) {
+                    // Check if time has passed today
+                    const [h, m] = event.time.split(":").map(Number);
+                    if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
+                        daysAway = 7;
+                    }
+                }
+                
+                if (daysAway < daysUntil) {
+                    daysUntil = daysAway;
+                    nextEvent = event;
+                }
+            }
+            
+            if (nextEvent) {
+                const dayName = nextEvent.day.charAt(0).toUpperCase() + nextEvent.day.slice(1);
+                const timeStr = formatTime12(nextEvent.time);
+                
+                if (daysUntil === 0) {
+                    infoEl.innerHTML = `<span>Next event: <strong>Today at ${timeStr}</strong></span>`;
+                } else if (daysUntil === 1) {
+                    infoEl.innerHTML = `<span>Next event: <strong>Tomorrow at ${timeStr}</strong></span>`;
+                } else {
+                    infoEl.innerHTML = `<span>Next event: <strong>${dayName} at ${timeStr}</strong></span>`;
+                }
+            }
+        } catch (err) {
+            console.error("Error loading next event info:", err);
+        }
+    }
+
+    function formatTime12(time24) {
+        const [h, m] = time24.split(":").map(Number);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 || 12;
+        return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+    }
+
+    async function createEventNow() {
+        try {
+            const res = await fetch("/api/events/create-now", { method: "POST" });
+            const data = await res.json();
+            
+            if (data.status === "ok") {
+                alert(`Event created for ${data.event_id}`);
+            }
+        } catch (err) {
+            console.error("Error creating event:", err);
+            alert("Error creating event. Check Supabase configuration.");
+        }
+    }
+
+    function openEventManager() {
+        document.getElementById("event-modal").classList.remove("hidden");
+        loadScheduledEvents();
+        loadManualEvents();
+    }
+
+    function closeEventManager() {
+        document.getElementById("event-modal").classList.add("hidden");
+        loadNextEventInfo();
+    }
+
+    async function loadScheduledEvents() {
+        try {
+            const res = await fetch("/api/events/scheduled");
+            const events = await res.json();
+            const container = document.getElementById("scheduled-events-list");
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p class="empty-list">No recurring events</p>';
+                return;
+            }
+            
+            container.innerHTML = events.map((event, index) => `
+                <div class="event-row ${event.enabled ? '' : 'disabled'}">
+                    <span class="event-info">
+                        <strong>${event.day.charAt(0).toUpperCase() + event.day.slice(1)}</strong> at ${formatTime12(event.time)}
+                        ${event.enabled ? '' : '<span class="badge">Disabled</span>'}
+                    </span>
+                    <div class="event-actions">
+                        <button class="icon-btn small" onclick="editScheduledEvent(${index})" title="Edit">✏️</button>
+                        <button class="icon-btn small" onclick="deleteScheduledEvent(${index})" title="Delete">🗑</button>
+                    </div>
+                </div>
+            `).join("");
+        } catch (err) {
+            console.error("Error loading scheduled events:", err);
+        }
+    }
+
+    async function loadManualEvents() {
+        try {
+            const res = await fetch("/api/events/manual");
+            const events = await res.json();
+            const container = document.getElementById("manual-events-list");
+            
+            // Filter out past events
+            const now = new Date();
+            const futureEvents = events.filter((e, i) => {
+                const eventDate = new Date(e.date + "T" + e.time);
+                return eventDate >= now || !e.created;
+            });
+            
+            if (futureEvents.length === 0) {
+                container.innerHTML = '<p class="empty-list">No upcoming manual events</p>';
+                return;
+            }
+            
+            container.innerHTML = events.map((event, index) => `
+                <div class="event-row ${event.created ? 'created' : ''}">
+                    <span class="event-info">
+                        <strong>${event.date}</strong> at ${formatTime12(event.time)}
+                        ${event.created ? '<span class="badge success">Created</span>' : ''}
+                    </span>
+                    <div class="event-actions">
+                        <button class="icon-btn small" onclick="deleteManualEvent(${index})" title="Delete">🗑</button>
+                    </div>
+                </div>
+            `).join("");
+        } catch (err) {
+            console.error("Error loading manual events:", err);
+        }
+    }
+
+    function openAddScheduledEvent() {
+        editingScheduledIndex = null;
+        document.getElementById("scheduled-modal-title").innerText = "Add Recurring Event";
+        document.getElementById("scheduled-day").value = "sunday";
+        document.getElementById("scheduled-time").value = "11:00";
+        document.getElementById("scheduled-enabled").checked = true;
+        document.getElementById("add-scheduled-modal").classList.remove("hidden");
+    }
+
+    function editScheduledEvent(index) {
+        fetch("/api/events/scheduled")
+            .then(r => r.json())
+            .then(events => {
+                const event = events[index];
+                editingScheduledIndex = index;
+                document.getElementById("scheduled-modal-title").innerText = "Edit Recurring Event";
+                document.getElementById("scheduled-day").value = event.day;
+                document.getElementById("scheduled-time").value = event.time;
+                document.getElementById("scheduled-enabled").checked = event.enabled;
+                document.getElementById("add-scheduled-modal").classList.remove("hidden");
+            });
+    }
+
+    function closeAddScheduledEvent() {
+        document.getElementById("add-scheduled-modal").classList.add("hidden");
+    }
+
+    async function saveScheduledEvent() {
+        const day = document.getElementById("scheduled-day").value;
+        const time = document.getElementById("scheduled-time").value;
+        const enabled = document.getElementById("scheduled-enabled").checked;
+
+        try {
+            if (editingScheduledIndex !== null) {
+                await fetch("/api/events/scheduled/update", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ index: editingScheduledIndex, day, time, enabled })
+                });
+            } else {
+                await fetch("/api/events/scheduled/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ day, time, enabled })
+                });
+            }
+            
+            closeAddScheduledEvent();
+            loadScheduledEvents();
+        } catch (err) {
+            console.error("Error saving scheduled event:", err);
+        }
+    }
+
+    async function deleteScheduledEvent(index) {
+        if (!confirm("Delete this recurring event?")) return;
+        
+        try {
+            await fetch("/api/events/scheduled/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ index })
+            });
+            loadScheduledEvents();
+        } catch (err) {
+            console.error("Error deleting scheduled event:", err);
+        }
+    }
+
+    function openAddManualEvent() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById("manual-date").value = tomorrow.toISOString().split("T")[0];
+        document.getElementById("manual-time").value = "11:00";
+        document.getElementById("add-manual-modal").classList.remove("hidden");
+    }
+
+    function closeAddManualEvent() {
+        document.getElementById("add-manual-modal").classList.add("hidden");
+    }
+
+    async function saveManualEvent() {
+        const date = document.getElementById("manual-date").value;
+        const time = document.getElementById("manual-time").value;
+
+        if (!date || !time) return;
+
+        try {
+            await fetch("/api/events/manual/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date, time })
+            });
+            
+            closeAddManualEvent();
+            loadManualEvents();
+        } catch (err) {
+            console.error("Error saving manual event:", err);
+        }
+    }
+
+    async function deleteManualEvent(index) {
+        if (!confirm("Delete this event?")) return;
+        
+        try {
+            await fetch("/api/events/manual/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ index })
+            });
+            loadManualEvents();
+        } catch (err) {
+            console.error("Error deleting manual event:", err);
+        }
+    }
+
+    // INITIAL LOAD
+    initApp();
+</script>
 
 </body>
 </html>

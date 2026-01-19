@@ -1,8 +1,20 @@
 {
     "Connect Card": {
-        "url": "https://www.clawson.tv/connectcard"
+        "url": "https://www.clawson.tv/connectcard",
+        "cue": {
+            "headline": "Welcome!",
+            "body_text": "Thanks for joining us today. We're glad you're here! Fill out a connect card to let us know you visited.",
+            "button_text": "Connect Card",
+            "button_url": "https://www.clawson.tv/connectcard"
+        }
     },
     "Giving": {
-        "url": "https://www.clawson.tv/give"
+        "url": "https://www.clawson.tv/give",
+        "cue": {
+            "headline": "Give",
+            "body_text": "Thank you for your generosity!",
+            "button_text": "Give Now",
+            "button_url": "https://www.clawson.tv/give"
+        }
     }
 }
