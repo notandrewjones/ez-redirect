@@ -154,7 +154,7 @@ setup_venv() {
     source "$VENV_DIR/bin/activate"
     
     pip install --upgrade pip --quiet
-    pip install fastapi "uvicorn[standard]" pystray pillow rumps --quiet
+    pip install -r "$INSTALL_DIR/backend/requirements.txt" --quiet
     
     print_status "Python dependencies installed"
 }
@@ -361,7 +361,7 @@ fi
 echo "Updating Python dependencies..."
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip --quiet
-pip install fastapi "uvicorn[standard]" pystray pillow rumps --quiet
+pip install -r "$INSTALL_DIR/backend/requirements.txt" --quiet
 
 echo "Starting services..."
 launchctl load "$SERVICE_PLIST"
