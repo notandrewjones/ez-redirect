@@ -352,10 +352,45 @@ echo "Stopping services..."
 launchctl unload "$SERVICE_PLIST" 2>/dev/null || true
 launchctl unload "$TRAY_PLIST" 2>/dev/null || true
 
+start_services() {
+    launchctl load "$SERVICE_PLIST"
+    sleep 2
+    launchctl load "$TRAY_PLIST"
+}
+
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo "Updating from git..."
     cd "$INSTALL_DIR"
-    git pull --ff-only
+
+    # config.json and presets.json are live data the app writes while it
+    # runs. Set this machine's copies aside, reset them so they can't block
+    # the pull, then put them back so an update never overwrites them.
+    LIVE_FILES="config.json presets.json"
+    BACKUP_DIR="$(mktemp -d)"
+    for f in $LIVE_FILES; do
+        if [ -f "backend/$f" ]; then
+            cp "backend/$f" "$BACKUP_DIR/$f"
+            git checkout -- "backend/$f" 2>/dev/null || true
+        fi
+    done
+
+    PULL_OK=1
+    git pull --ff-only || PULL_OK=0
+
+    for f in $LIVE_FILES; do
+        if [ -f "$BACKUP_DIR/$f" ]; then
+            cp "$BACKUP_DIR/$f" "backend/$f"
+        fi
+    done
+
+    if [ "$PULL_OK" -ne 1 ]; then
+        echo ""
+        echo "❌ git pull failed (see above). Restarting the existing version."
+        echo "   Your settings were restored. Backup copy: $BACKUP_DIR"
+        start_services
+        exit 1
+    fi
+    rm -rf "$BACKUP_DIR"
 fi
 
 echo "Updating Python dependencies..."
@@ -364,9 +399,7 @@ pip install --upgrade pip --quiet
 pip install -r "$INSTALL_DIR/backend/requirements.txt" --quiet
 
 echo "Starting services..."
-launchctl load "$SERVICE_PLIST"
-sleep 2
-launchctl load "$TRAY_PLIST"
+start_services
 
 echo ""
 echo "✅ ez-redirect updated and restarted!"
