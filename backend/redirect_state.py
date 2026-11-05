@@ -3,11 +3,18 @@ import time
 import secrets
 import threading
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from threading import RLock
 from pathlib import Path
 from collections import OrderedDict
 from typing import Dict, Any, Optional, List
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+# The timezone the service schedule is expressed in. Everything the operator
+# types ("sunday 10:30") is a *wall clock* time in this zone; it has to be
+# converted to a real instant before it goes anywhere near Postgres.
+DEFAULT_EVENT_TIMEZONE = "America/Chicago"
 
 
 class RedirectState:
@@ -40,6 +47,7 @@ class RedirectState:
             "api_key": None,
             "supabase_url": "",
             "supabase_api_key": "",
+            "event_timezone": DEFAULT_EVENT_TIMEZONE,
             "scheduled_events": [
                 {"day": "sunday", "time": "11:00", "enabled": True}
             ],
@@ -223,6 +231,39 @@ class RedirectState:
                 return {"name": preset_name, **data}
         return None
 
+    # ----------------- timezone helpers -----------------
+
+    def get_event_timezone(self) -> ZoneInfo:
+        """The zone the service schedule is written in (default America/Chicago)."""
+        with self.lock:
+            name = self.data.get("event_timezone") or DEFAULT_EVENT_TIMEZONE
+        try:
+            return ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            print(f"Unknown event_timezone {name!r}, falling back to {DEFAULT_EVENT_TIMEZONE}")
+            return ZoneInfo(DEFAULT_EVENT_TIMEZONE)
+
+    def now_local(self) -> datetime:
+        """Right now, as a tz-aware datetime in the event timezone.
+
+        Unlike datetime.now() this is never naive, so it cannot be silently
+        reinterpreted as UTC further down the line.
+        """
+        return datetime.now(timezone.utc).astimezone(self.get_event_timezone())
+
+    def service_start_instant(self, date_str: str, time_str: str) -> datetime:
+        """Convert a local date + "HH:MM" wall clock into a real instant.
+
+        e.g. ("2026-02-22", "10:30") -> 2026-02-22T10:30:00-06:00 (16:30Z)
+             ("2026-03-15", "10:30") -> 2026-03-15T10:30:00-05:00 (15:30Z)
+
+        The offset comes from the tz database, so it stays correct on both
+        sides of every DST transition.
+        """
+        year, month, day = (int(part) for part in date_str.split("-"))
+        hour, minute = (int(part) for part in time_str.split(":"))
+        return datetime(year, month, day, hour, minute, tzinfo=self.get_event_timezone())
+
     # ----------------- Supabase integration -----------------
 
     def get_supabase_config(self) -> Dict[str, Any]:
@@ -240,8 +281,13 @@ class RedirectState:
             self._save_json(self.config_path, self.data)
 
     def _get_today_event_id(self) -> str:
-        """Get today's date as event_id in YYYY-MM-DD format."""
-        return datetime.now().strftime("%Y-%m-%d")
+        """Today's date in the event timezone, as event_id (YYYY-MM-DD).
+
+        Deliberately not the machine's local date: the event_id is the join key
+        the cue and the event row have to agree on, so it must not depend on how
+        the operator's laptop is configured.
+        """
+        return self.now_local().strftime("%Y-%m-%d")
 
     def post_cue_to_supabase(self, preset_name: str, cue_data: Optional[Dict[str, str]]) -> Dict[str, Any]:
         """
@@ -324,9 +370,17 @@ class RedirectState:
             "resi_embed_id": "70c58906-58c6-4306-bdd8-813af42557d5"
         }
         
-        # Add start_time if provided
-        if start_time:
-            payload["start_time"] = start_time.isoformat()
+        # Add start_time if provided.
+        #
+        # This MUST carry an offset. A naive isoformat() string like
+        # "2026-02-22T10:30:00" is stored by Postgres as 10:30 *UTC*, i.e.
+        # 4:30am local in winter and 5:30am local in summer, which is what
+        # broke VOD alignment. Converting to UTC here makes the instant
+        # explicit and unambiguous on the wire.
+        if start_time is not None:
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=self.get_event_timezone())
+            payload["start_time"] = start_time.astimezone(timezone.utc).isoformat()
 
         try:
             response = requests.post(
@@ -348,6 +402,11 @@ class RedirectState:
                 }
         except requests.exceptions.RequestException as e:
             return {"success": False, "error": str(e)}
+
+    def create_event_now(self) -> Dict[str, Any]:
+        """Create today's event immediately, starting at this exact instant."""
+        now = self.now_local()
+        return self.create_event_in_supabase(now.strftime("%Y-%m-%d"), now)
 
     def _update_event_start_time(self, event_id: str, start_time: datetime) -> None:
         """Update an event's service_start_time."""
@@ -453,7 +512,7 @@ class RedirectState:
 
     def _check_scheduled_events(self) -> None:
         """Check if any recurring scheduled events should fire."""
-        now = datetime.now()
+        now = self.now_local()
         current_day = now.strftime("%A").lower()
         current_time = now.strftime("%H:%M")
         today_str = now.strftime("%Y-%m-%d")
@@ -478,8 +537,10 @@ class RedirectState:
                     # Check if we're within 1 minute of the scheduled time
                     if now.hour == event_hour and now.minute == event_min:
                         if event_key not in self._created_events_today:
-                            # Create the event
-                            start_time = now.replace(hour=event_hour, minute=event_min, second=0, microsecond=0)
+                            # Create the event. start_time is the scheduled wall
+                            # clock resolved to a real instant, not "now", so a
+                            # late scheduler tick still records a clean 10:30.
+                            start_time = self.service_start_instant(today_str, event_time)
                             result = self.create_event_in_supabase(today_str, start_time)
                             
                             if result.get("success"):
@@ -494,7 +555,7 @@ class RedirectState:
 
     def _check_manual_events(self) -> None:
         """Check if any manual events should fire."""
-        now = datetime.now()
+        now = self.now_local()
         current_date = now.strftime("%Y-%m-%d")
         current_time = now.strftime("%H:%M")
 
@@ -514,7 +575,7 @@ class RedirectState:
                         event_hour, event_min = map(int, event_time.split(":"))
                         
                         if now.hour == event_hour and now.minute == event_min:
-                            start_time = now.replace(hour=event_hour, minute=event_min, second=0, microsecond=0)
+                            start_time = self.service_start_instant(event_date, event_time)
                             result = self.create_event_in_supabase(event_date, start_time)
                             
                             if result.get("success"):

@@ -355,13 +355,10 @@ def api_delete_manual_event(payload: dict = Body(...)):
 @app.post("/api/events/create-now")
 def api_create_event_now():
     """Manually create an event for today right now."""
-    from datetime import datetime
-    
-    today = datetime.now().strftime("%Y-%m-%d")
-    result = state.create_event_in_supabase(today, datetime.now())
-    
+    result = state.create_event_now()
+
     if result.get("success"):
-        return {"status": "ok", "event_id": today}
+        return {"status": "ok", "event_id": result.get("event_id")}
     else:
         raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 

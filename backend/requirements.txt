@@ -3,3 +3,6 @@ uvicorn[standard]
 pystray
 pillow
 rumps
+requests
+# zoneinfo needs a tz database; macOS/Linux ship one, Windows does not
+tzdata; sys_platform == "win32"
