@@ -338,71 +338,13 @@ create_helper_scripts() {
         print_status "Created /usr/local/bin directory"
     fi
     
-    # ez-update script
-    sudo tee /usr/local/bin/ez-update > /dev/null <<'UPDATEEOF'
+    # ez-update: a thin wrapper around the updater that ships in the repo, so
+    # improvements to the update process arrive with git instead of needing
+    # a reinstall.
+    sudo tee /usr/local/bin/ez-update > /dev/null <<UPDATEEOF
 #!/bin/bash
-set -e
-
-INSTALL_DIR="/usr/local/ez-redirect"
-VENV_DIR="$INSTALL_DIR/venv"
-SERVICE_PLIST="$HOME/Library/LaunchAgents/com.ezredirect.service.plist"
-TRAY_PLIST="$HOME/Library/LaunchAgents/com.ezredirect.tray.plist"
-
-echo "Stopping services..."
-launchctl unload "$SERVICE_PLIST" 2>/dev/null || true
-launchctl unload "$TRAY_PLIST" 2>/dev/null || true
-
-start_services() {
-    launchctl load "$SERVICE_PLIST"
-    sleep 2
-    launchctl load "$TRAY_PLIST"
-}
-
-if [ -d "$INSTALL_DIR/.git" ]; then
-    echo "Updating from git..."
-    cd "$INSTALL_DIR"
-
-    # config.json and presets.json are live data the app writes while it
-    # runs. Set this machine's copies aside, reset them so they can't block
-    # the pull, then put them back so an update never overwrites them.
-    LIVE_FILES="config.json presets.json"
-    BACKUP_DIR="$(mktemp -d)"
-    for f in $LIVE_FILES; do
-        if [ -f "backend/$f" ]; then
-            cp "backend/$f" "$BACKUP_DIR/$f"
-            git checkout -- "backend/$f" 2>/dev/null || true
-        fi
-    done
-
-    PULL_OK=1
-    git pull --ff-only || PULL_OK=0
-
-    for f in $LIVE_FILES; do
-        if [ -f "$BACKUP_DIR/$f" ]; then
-            cp "$BACKUP_DIR/$f" "backend/$f"
-        fi
-    done
-
-    if [ "$PULL_OK" -ne 1 ]; then
-        echo ""
-        echo "❌ git pull failed (see above). Restarting the existing version."
-        echo "   Your settings were restored. Backup copy: $BACKUP_DIR"
-        start_services
-        exit 1
-    fi
-    rm -rf "$BACKUP_DIR"
-fi
-
-echo "Updating Python dependencies..."
-source "$VENV_DIR/bin/activate"
-pip install --upgrade pip --quiet
-pip install -r "$INSTALL_DIR/backend/requirements.txt" --quiet
-
-echo "Starting services..."
-start_services
-
-echo ""
-echo "✅ ez-redirect updated and restarted!"
+# Runs the updater that ships with ez-redirect (see scripts/ez-update.sh).
+exec /bin/bash "$INSTALL_DIR/scripts/ez-update.sh" "\$@"
 UPDATEEOF
     sudo chmod +x /usr/local/bin/ez-update
     
