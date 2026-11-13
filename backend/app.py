@@ -6,10 +6,11 @@ Supabase cue integration, and scheduled event management.
 """
 
 from typing import Optional
-from fastapi import FastAPI, Response, HTTPException, Body, Query
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, Response, HTTPException, Body, Query
+from fastapi.responses import FileResponse, PlainTextResponse
 from pathlib import Path
+import ipaddress
+import secrets
 import sys
 
 # Ensure the parent directory is in the path for imports
@@ -26,16 +27,76 @@ app = FastAPI(
     debug=False,
 )
 
-# Allow all origins (fine for a LAN tool; you can lock this down later)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 state = RedirectState()
+
+
+# ----------------- ADMIN ACCESS CONTROL -----------------
+#
+# The redirect port is usually port-forwarded so phones can hit /redirect from
+# anywhere. That must not expose the control panel or the admin API, which can
+# change the redirect target and read the stored API keys. Only the routes
+# below are reachable from the internet; everything else requires the client to
+# be on a local/private network.
+#
+# No CORS middleware on purpose: the UI is served same-origin, and allowing
+# cross-origin calls would let any website a LAN user visits drive the admin API.
+
+PUBLIC_PATHS = {"/redirect", "/api/health"}
+PUBLIC_PREFIXES = ("/preset/",)  # still protected by the preset API key
+
+DEFAULT_ADMIN_NETWORKS = [
+    "127.0.0.0/8",      # localhost
+    "::1/128",
+    "10.0.0.0/8",       # private LAN ranges
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "169.254.0.0/16",   # link-local
+    "fc00::/7",         # IPv6 unique local
+    "fe80::/10",        # IPv6 link-local
+    "100.64.0.0/10",    # Tailscale / CGNAT
+]
+
+
+def _admin_networks():
+    # Optional override: "admin_allowed_networks": ["192.168.1.0/24", ...] in config.json
+    configured = state.data.get("admin_allowed_networks") or DEFAULT_ADMIN_NETWORKS
+    networks = []
+    for cidr in configured:
+        try:
+            networks.append(ipaddress.ip_network(cidr, strict=False))
+        except ValueError:
+            print(f"[security] Ignoring invalid admin network: {cidr!r}")
+    return networks
+
+
+ADMIN_NETWORKS = _admin_networks()
+
+
+def is_admin_client(host: Optional[str]) -> bool:
+    if not host:
+        return False
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    # Dual-stack sockets report IPv4 clients as ::ffff:a.b.c.d
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+        addr = addr.ipv4_mapped
+    return any(addr in net for net in ADMIN_NETWORKS)
+
+
+def is_public_path(path: str) -> bool:
+    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+
+
+@app.middleware("http")
+async def restrict_admin_to_lan(request: Request, call_next):
+    if not is_public_path(request.url.path):
+        client_host = request.client.host if request.client else None
+        if not is_admin_client(client_host):
+            # 404 rather than 403 so the panel's existence isn't advertised
+            return PlainTextResponse("Not Found", status_code=404)
+    return await call_next(request)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
@@ -381,7 +442,7 @@ async def activate_preset_by_url(
     api_key_enabled = state.is_api_key_enabled()
     if api_key_enabled:
         expected = state.get_api_key()
-        if not key or key != expected:
+        if not key or not expected or not secrets.compare_digest(key, expected):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
     preset = state.get_preset(preset_name)
