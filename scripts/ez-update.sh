@@ -17,6 +17,9 @@ BRANCH="${EZ_BRANCH:-main}"
 VENV_DIR="$INSTALL_DIR/venv"
 SERVICE_PLIST="$HOME/Library/LaunchAgents/com.ezredirect.service.plist"
 TRAY_PLIST="$HOME/Library/LaunchAgents/com.ezredirect.tray.plist"
+# Early installers ran the server as com.ezredirect.app. Left loaded, it races
+# com.ezredirect.service for the port at every login.
+LEGACY_PLIST="$HOME/Library/LaunchAgents/com.ezredirect.app.plist"
 WRAPPER="${EZ_WRAPPER:-/usr/local/bin/ez-update}"
 LIVE_FILES=(backend/config.json backend/presets.json)
 BACKUP_DIR="$HOME/.ez-redirect-backups/$(date +%Y%m%d-%H%M%S)"
@@ -34,8 +37,11 @@ main() {
     launchctl unload "$SERVICE_PLIST" 2>/dev/null || true
     launchctl unload "$TRAY_PLIST" 2>/dev/null || true
 
-    # Whatever happens from here on, restart the service before exiting.
-    trap 'start_services' EXIT
+    # Whatever happens from here on, restart the service and check it's up.
+    trap 'finish' EXIT
+
+    mkdir -p "$BACKUP_DIR"
+    remove_legacy_service
 
     echo "Fetching latest version..."
     if ! git fetch --quiet origin "$BRANCH"; then
@@ -44,7 +50,6 @@ main() {
     fi
 
     # Back up live settings and any local code edits.
-    mkdir -p "$BACKUP_DIR"
     local f
     for f in "${LIVE_FILES[@]}"; do
         [ -f "$f" ] && cp "$f" "$BACKUP_DIR/"
@@ -89,8 +94,54 @@ main() {
     # Keep only the 10 most recent backups.
     ls -1dt "$HOME/.ez-redirect-backups"/*/ 2>/dev/null | tail -n +11 | xargs rm -rf 2>/dev/null || true
 
+    UPDATED_TO="$after"
+}
+
+UPDATED_TO=""
+
+finish() {
+    local status=$?
+    start_services
+    if ! check_health; then
+        exit 1
+    fi
     echo ""
-    echo "✅ ez-redirect updated to $after. Settings backup: $BACKUP_DIR"
+    if [ -n "$UPDATED_TO" ]; then
+        echo "✅ ez-redirect updated to $UPDATED_TO and responding. Settings backup: $BACKUP_DIR"
+    fi
+    exit "$status"
+}
+
+check_health() {
+    local port
+    port="$("$VENV_DIR/bin/python" -c "import json;print(json.load(open('$INSTALL_DIR/backend/config.json')).get('port',8000))" 2>/dev/null || echo 8000)"
+    printf "Waiting for server on port %s" "$port"
+    local i
+    for i in $(seq 1 20); do
+        if curl -s -m 2 -o /dev/null "http://localhost:$port/api/health"; then
+            echo " ✓"
+            return 0
+        fi
+        printf "."
+        sleep 1
+    done
+    echo ""
+    echo "❌ The server isn't responding on port $port after 20 seconds."
+    echo "   launchd status:"
+    launchctl list | grep -i ezredirect | sed 's/^/     /'
+    echo "   Last lines of $INSTALL_DIR/logs/service-error.log:"
+    tail -15 "$INSTALL_DIR/logs/service-error.log" 2>/dev/null | sed 's/^/     /'
+    return 1
+}
+
+remove_legacy_service() {
+    if [ -f "$LEGACY_PLIST" ]; then
+        echo "Removing old duplicate service (com.ezredirect.app)..."
+        launchctl unload "$LEGACY_PLIST" 2>/dev/null || true
+        mv "$LEGACY_PLIST" "$BACKUP_DIR/"
+    fi
+    # Stop it even if it was loaded without a plist on disk.
+    launchctl remove com.ezredirect.app 2>/dev/null || true
 }
 
 restore_live_files() {
@@ -102,9 +153,9 @@ restore_live_files() {
 
 start_services() {
     echo "Starting services..."
-    launchctl load "$SERVICE_PLIST" 2>/dev/null || true
+    launchctl load "$SERVICE_PLIST" || echo "⚠️  launchctl couldn't load the backend service (see above)."
     sleep 2
-    launchctl load "$TRAY_PLIST" 2>/dev/null || true
+    launchctl load "$TRAY_PLIST" || echo "⚠️  launchctl couldn't load the tray app (see above)."
 }
 
 # Older installs have a full copy of the update logic in /usr/local/bin.
